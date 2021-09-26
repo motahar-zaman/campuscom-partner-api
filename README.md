@@ -1,0 +1,1 @@
+# campuscom-partner-api

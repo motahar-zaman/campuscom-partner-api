@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'publish.apps.PublishConfig',
+
     'rest_framework',
     'shared_models',
 ]

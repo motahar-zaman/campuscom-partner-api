@@ -9,13 +9,14 @@ from rest_framework.status import (
 )
 
 from publish.serializers import ProductSerializer
-from publish.auth import IsAuthenticated
+from publish.permissions import HasStoreAPIKey
 
 
 class PublishViewSet(viewsets.ModelViewSet):
     model = Product
     serializer_class = ProductSerializer
-    permission_classes = (IsAuthenticated, )
+    # permission_classes = (IsAuthenticated, )
+    permission_classes = (HasStoreAPIKey, )
     http_method_names = ['get', 'head', 'post', 'patch', 'update', 'delete']
 
     def get_queryset(self):

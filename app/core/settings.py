@@ -41,12 +41,15 @@ INSTALLED_APPS = [
     'publish.apps.PublishConfig',
 
     'rest_framework',
+    'rest_framework_api_key',
+    'corsheaders',
     'shared_models',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -85,10 +88,10 @@ PAYMENT_LIB_DIR = os.path.join(BASE_DIR, 'payments')
 
 DATABASES = {
     'default': {
-        'ENGINE': config('ENGINE', default='django.db.backends.postgresql_psycopg2'),
-        'NAME': config('DATABASE_NAME', default='shared_api_admin_db'),
-        'USER': config('DATABASE_USER', default='shared_api_admin_db'),
-        'PASSWORD': config('DATABASE_PASSWORD', default='campus3210'),
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': config('DATABASE_NAME', default=''),
+        'USER': config('DATABASE_USER', default=''),
+        'PASSWORD': config('DATABASE_PASSWORD', default=''),
         'HOST': config('DATABASE_HOST', default='localhost'),
         'PORT': config('DATABASE_PORT', default='5432'),
 
@@ -97,6 +100,9 @@ DATABASES = {
         # },
     }
 }
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_ALLOW_ALL = True
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',

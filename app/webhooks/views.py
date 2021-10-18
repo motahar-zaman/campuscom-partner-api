@@ -6,28 +6,19 @@ from rest_framework.status import HTTP_200_OK
 from publish.permissions import HasStoreAPIKey
 
 from shared_models.models import Cart, StudentProfile, Course, Certificate, CourseEnrollment, CertificateEnrollment
+from models.course.course import Course as CourseModel
+from models.certificate.certificate import Certificate as CertificateModel
 
 
 def handle_enrollment_event(payload, cart, store):
     for item in payload['products']:
         try:
-            course = Course.objects.get(external_id=payload['external_id'])
-        except Course.DoesNotExist:
-            try:
-                certificate = Certificate.objects.get(external_id=payload['external_id'])
-            except Certificate.DoesNotExist:
-                pass
-            else:
-                enrollment = CertificateEnrollment.objects.create(
-                    profile=cart.profile,
-                    certificate=certificate,
-                    store=store,
-                    application_time=timezone.now(),
-                    enrollment_time=timezone.now(),
-                    status='success'
-                )
-
+            course_model = CourseModel.objects.get(external_id=payload['external_id'])
+        except CourseModel.DoesNotExist:
+            continue
         else:
+            course = Course.objects.get(content_db_reference=str(course_model.id))
+
             enrollment = CourseEnrollment.objects.create(
                 profile=cart.profile,
                 course=course,
@@ -35,6 +26,21 @@ def handle_enrollment_event(payload, cart, store):
                 application_time=timezone.now(),
                 status='success',
                 store=store
+            )
+
+        try:
+            certificate_model = CertificateModel.objects.get(external_id=payload['external_id'])
+        except Certificate.DoesNotExist:
+            continue
+        else:
+            certificate = Certificate.objects.get(content_db_reference=str(certificate_model.id))
+            enrollment = CertificateEnrollment.objects.create(
+                profile=cart.profile,
+                certificate=certificate,
+                store=store,
+                application_time=timezone.now(),
+                enrollment_time=timezone.now(),
+                status='success'
             )
 
     return enrollment

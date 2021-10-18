@@ -12,6 +12,24 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 import os
 from decouple import config
 from pathlib import Path
+from mongoengine import connect, disconnect
+
+mongodb_host = config('MONGODB_HOST')
+mongodb_database = config('MONGODB_DATABASE')
+mongodb_port = config('MONGODB_PORT')
+mongodb_username = config('MONGODB_USERNAME')
+mongodb_password = config('MONGODB_PASSWORD')
+mongodb_auth_database = config('MONGODB_AUTH_DATABASE')
+
+disconnect()
+connect(
+    mongodb_database,
+    host=mongodb_host,
+    port=int(mongodb_port),
+    username=mongodb_username,
+    password=mongodb_password,
+    authentication_source=mongodb_auth_database
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

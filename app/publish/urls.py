@@ -4,7 +4,7 @@ from publish.views import PublishViewSet
 
 router = routers.DefaultRouter()
 
-router.register(r'publish', PublishViewSet, 'profile_enrollments')
+router.register(r'publish', PublishViewSet, 'publish')
 
 
 urlpatterns = [

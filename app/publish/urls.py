@@ -1,12 +1,15 @@
 from django.urls import path, include
-from rest_framework import routers
-from publish.views import PublishViewSet
+# from rest_framework import routers
 
-router = routers.DefaultRouter()
+# from publish.views import PublishViewSet, publish
+from publish.views import publish
 
-router.register(r'publish', PublishViewSet, 'publish')
+# router = routers.DefaultRouter()
+
+# router.register(r'publish', PublishViewSet, 'publish')
 
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # path('', include(router.urls)),
+    path('publish/', publish),
 ]

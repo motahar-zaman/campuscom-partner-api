@@ -36,7 +36,6 @@ lazy-object-proxy==1.4.3
 mailchecker==4.0.13
 matplotlib-inline==0.1.3
 mccabe==0.6.1
-mongoengine==0.19.1
 parso==0.8.2
 pexpect==4.8.0
 phonenumbers==8.12.35

@@ -90,10 +90,10 @@ def publish(request):
     action = payload['action']
     request_data = payload['data']
 
-    if action == 'course':
+    contract = CourseSharingContract.objects.filter(store=request.store, is_active=True).first()
+    course_provider = contract.course_provider
 
-        contract = CourseSharingContract.objects.filter(store=request.store, is_active=True).first()
-        course_provider = contract.course_provider
+    if action == 'course':
 
         request_data['provider'] = course_provider.content_db_reference
         request_data['course_provider'] = course_provider.id
@@ -137,86 +137,85 @@ def publish(request):
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
-    return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
+    if action == 'section':
+        with scopes_disabled():
+            # in this query, we add the course provider although we have the id of the course
+            # this is because, we want to make sure we don't change any course to which the
+            # user has no access. since course provider is determined from the secured key
+            # provided as authorization header, user can not fake this.
+            course = get_object_or_404(Course, course_provider__id=course_provider.id, id=request_data['course'])
 
-#     if action == 'section':
-#         with scopes_disabled():
-#             course = get_object_or_404(Course, id=request.data['course'])
+        if int(request_data['available_seat']) > int(request_data['seat_capacity']):
+            raise serializers.ValidationError(
+                {
+                    'available_seat': 'Available seat can not be greater than seat capacity'
+                }
+            )
 
-#         course_model = CourseModel.objects.get(id=course.content_db_reference)
+        start_date = None
+        end_date = None
+        registration_deadline = None
 
-#         if int(request_data['available_seat']) > int(request_data['seat_capacity']):
-#             raise serializers.ValidationError(
-#                 {
-#                     'available_seat': 'Available seat can not be greater than seat capacity'
-#                 }
-#             )
+        if 'start_date' in request_data:
+            start_date = datetime.fromisoformat(request_data['start_date'])
 
-#         start_date = None
-#         end_date = None
-#         registration_deadline = None
+        if 'end_date' in request_data:
+            end_date = datetime.fromisoformat(request_data['end_date'])
 
-#         if 'start_date' in request_data:
-#             start_date = datetime.fromisoformat(request_data['start_date'])
+        if 'registration_deadline' in request_data:
+            registration_deadline = datetime.fromisoformat(
+                request_data['registration_deadline']
+            )
 
-#         if 'end_date' in request_data:
-#             end_date = datetime.fromisoformat(request_data['end_date'])
+        if start_date and end_date and start_date > end_date:
+            raise serializers.ValidationError(
+                {'start_date': 'Start date must not be in the future from end date'}
+            )
 
-#         if 'registration_deadline' in request_data:
-#             registration_deadline = datetime.fromisoformat(
-#                 request_data['registration_deadline']
-#             )
+        if registration_deadline and end_date and registration_deadline > end_date:
+            raise serializers.ValidationError(
+                {
+                    'registration_deadline': 'Final Enrollment Date must not be after end date'
+                }
+            )
 
-#         if start_date and end_date and start_date > end_date:
-#             raise serializers.ValidationError(
-#                 {'start_date': 'Start date must not be in the future from end date'}
-#             )
+        serializer_mongo = CheckSectionModelValidationSerializer(data=request_data)
+        serializer_mongo.is_valid(raise_exception=True)
 
-#         if registration_deadline and end_date and registration_deadline > end_date:
-#             raise serializers.ValidationError(
-#                 {
-#                     'registration_deadline': 'Final Enrollment Date must not be after end date'
-#                 }
-#             )
+        request_data['content_db_reference'] = course.content_db_reference
 
-#         section_data = request.data.copy()
+        with scopes_disabled():
+            try:
+                section = course.sections.get(name=request_data['name'])
+            except Section.DoesNotExist:
+                serializer = SectionSerializer(data=request_data)
+            else:
+                serializer = SectionSerializer(section, data=request_data)
 
-#         data = {
-#             'code': section_data.pop('name', ''),
-#             'course_fee': {'amount': section_data.pop('fee', ''), 'currency': 'USD'},
-#             'num_seats': section_data.pop('seat_capacity', ''),
-#             'available_seats': section_data.pop('available_seat', ''),
-#             'execution_mode': section_data.pop('execution_mode', ''),
-#             'is_active': section_data.pop('is_active', True),
-#             'description': section_data.pop('description', ''),
-#             'registration_url': section_data.pop('registration_url', ''),
-#             'details_url': section_data.pop('details_url', None),
-#             'start_date': section_data.pop('start_date', None),
-#             'end_date': section_data.pop('end_date', None),
-#             'registration_deadline': section_data.pop('registration_deadline', ''),
-#             'credit_hours': section_data.pop('credit_hours', ''),
-#             'ceu_hours': section_data.pop('ceu_hours', ''),
-#             'clock_hours': section_data.pop('clock_hours', 0.0),
-#             'load_hours': section_data.pop('load_hours', 0.0),
-#         }
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
 
-#         serializer_mongo = CheckSectionModelValidationSerializer(data=data)
-#         with scopes_disabled():
-#             serializer_mongo.is_valid(raise_exception=True)
+        del request_data['name']
+        del request_data['content_db_reference']
+        del request_data['seat_capacity']
+        del request_data['fee']
+        del request_data['course']
+        del request_data['available_seat']
 
-#         request_data['content_db_reference'] = course.content_db_reference
-#         serializer = SectionSerializer(data=request_data)
-#         with scopes_disabled():
-#             serializer.is_valid(raise_exception=True)
-#         # use serializer.save() which returns a created object and handle exception manually
-#         serializer.save()
+        # course_model.sections.append(SectionModel(**request_data))
+        # course_model.save()
 
-#         # Add instructors in section
-#         data = self.add_instructors_in_section(data, request_data)
+        # course save in mongodb
+        # course_model = CourseModel.with_deleted_objects(external_id=request_data['external_id'], provider=request_data['provider'])
+        course_model = CourseModel.objects(id=course.content_db_reference).update_one(add_to_set__sections=request_data)
+        # raw_query = {'$push_to_set__sections': request_data}
+        # # import ipdb; ipdb.set_trace()
+        # result = course_model.update_one(__raw__=raw_query)
 
-#         course_model.sections.append(SectionModel(**data))
-#         course_model.save()
-#         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
+    else:
+        return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
+
+    return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
 
 

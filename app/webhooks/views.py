@@ -8,6 +8,7 @@ from publish.permissions import HasStoreAPIKey
 from shared_models.models import Cart, StudentProfile, Course, Certificate, CourseEnrollment, CertificateEnrollment
 from models.course.course import Course as CourseModel
 from models.certificate.certificate import Certificate as CertificateModel
+from django_scopes import scopes_disabled
 
 
 def handle_enrollment_event(payload, cart, store):
@@ -17,7 +18,8 @@ def handle_enrollment_event(payload, cart, store):
         except CourseModel.DoesNotExist:
             continue
         else:
-            course = Course.objects.get(content_db_reference=str(course_model.id))
+            with scopes_disabled():
+                course = Course.objects.get(content_db_reference=str(course_model.id))
 
             enrollment = CourseEnrollment.objects.create(
                 profile=cart.profile,
@@ -33,7 +35,8 @@ def handle_enrollment_event(payload, cart, store):
         except Certificate.DoesNotExist:
             continue
         else:
-            certificate = Certificate.objects.get(content_db_reference=str(certificate_model.id))
+            with scopes_disabled():
+                certificate = Certificate.objects.get(content_db_reference=str(certificate_model.id))
             enrollment = CertificateEnrollment.objects.create(
                 profile=cart.profile,
                 certificate=certificate,
@@ -74,10 +77,11 @@ def webhooks(request):
     except KeyError:
         return Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
 
-    try:
-        cart = Cart.objects.get(id=cart_id)
-    except Cart.DoesNotExist:
-        return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
+    with scopes_disabled():
+        try:
+            cart = Cart.objects.get(id=cart_id)
+        except Cart.DoesNotExist:
+            return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
 
     if even_type == 'enrollment':
         handle_enrollment_event(payload, cart, request.store)

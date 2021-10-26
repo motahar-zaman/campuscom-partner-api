@@ -5,48 +5,57 @@ from rest_framework.status import HTTP_200_OK
 
 from publish.permissions import HasStoreAPIKey
 
-from shared_models.models import Cart, StudentProfile, Course, Certificate, CourseEnrollment, CertificateEnrollment
+from shared_models.models import Cart, StudentProfile, Course, Certificate, CourseEnrollment, CertificateEnrollment, CourseSharingContract
 from models.course.course import Course as CourseModel
 from models.certificate.certificate import Certificate as CertificateModel
+from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from django_scopes import scopes_disabled
 
 
 def handle_enrollment_event(payload, cart, store):
+    contract = CourseSharingContract.objects.filter(store=store, is_active=True).first()
+    course_provider = contract.course_provider
+    provider = CourseProviderModel.objects.get(id=course_provider.content_db_reference)
+
     for item in payload['products']:
         try:
-            course_model = CourseModel.objects.get(external_id=payload['external_id'])
+            course_model = CourseModel.objects.get(external_id=item['external_id'], provider=provider)
         except CourseModel.DoesNotExist:
             continue
         else:
             with scopes_disabled():
                 course = Course.objects.get(content_db_reference=str(course_model.id))
 
-            enrollment = CourseEnrollment.objects.create(
+            enrollment, created = CourseEnrollment.objects.get_or_create(
                 profile=cart.profile,
                 course=course,
-                enrollment_time=timezone.now(),
-                application_time=timezone.now(),
-                status='success',
-                store=store
+                store=store,
+                defaults={
+                    'enrollment_time': timezone.now(),
+                    'application_time': timezone.now(),
+                    'status': 'success'
+                }
             )
 
         try:
-            certificate_model = CertificateModel.objects.get(external_id=payload['external_id'])
+            certificate_model = CertificateModel.objects.get(external_id=item['external_id'])
         except Certificate.DoesNotExist:
             continue
         else:
             with scopes_disabled():
                 certificate = Certificate.objects.get(content_db_reference=str(certificate_model.id))
-            enrollment = CertificateEnrollment.objects.create(
+            enrollment, created = CertificateEnrollment.objects.get_or_create(
                 profile=cart.profile,
                 certificate=certificate,
                 store=store,
-                application_time=timezone.now(),
-                enrollment_time=timezone.now(),
-                status='success'
+                defaults={
+                    'application_time': timezone.now(),
+                    'enrollment_time': timezone.now(),
+                    'status': 'success'
+                }
             )
 
-    return enrollment
+    return True
 
 
 def handle_student_event(payload, cart, store):

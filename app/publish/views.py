@@ -1,7 +1,10 @@
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from bson import ObjectId
+from mongoengine import get_db
 
 from shared_models.models import Course, Section, Product, CourseProvider, CourseSharingContract
+from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from models.course.course import Course as CourseModel
 from models.course.section import Section as SectionModel
 
@@ -81,6 +84,139 @@ from django_scopes import scopes_disabled
 #         return Response(status=HTTP_204_NO_CONTENT)
 
 
+def prepare_course_postgres(data, course_provider, course_provider_model):
+    course_data = {
+        'course_provider': str(course_provider.id),
+        'title': data.get('title'),
+        'slug': data.get('slug'),
+        'course_image_uri': data.get('course_image_uri', None),
+        'content_ready': data.get('content_ready', False),
+        'external_image_url': data.get('external_image_url', None),
+    }
+    return course_data
+
+
+def prepare_course_mongo(data, course_provider, course_provider_model):
+    level = data.get('level', None)
+    if level not in ['beginner', 'intermediate', 'advanced']:
+        level = ''
+
+    course_model_data = {
+        '_cls': 'Course',
+        'provider': ObjectId(course_provider.content_db_reference),
+        'from_importer': False,
+        'external_id': data.get('external_id'),
+        'external_url': data.get('external_url'),
+        'external_version_id': data.get('external_version_id'),
+        'code': data.get('code'),
+        'title': data.get('title'),
+        'slug': data.get('slug'),
+        'description': data.get('description'),
+        'learning_outcome': data.get('learning_outcome'),
+        # 'image': {},
+        # 'default_image': {},
+        'summary': data.get('summary'),
+        'syllabus_url': data.get('syllabus_url'),
+        'level': level,
+        'inquiry_url': data.get('inquiry_url'),
+        # 'overrides': data.get('overrides'),
+        # 'sections': data.get('sections'),
+        # 'programs': data.get('programs'),
+        # 'required_courses': data.get('required_courses'),
+        # 'recommended_courses': data.get('recommended_courses'),
+        # 'subjects': data.get('subjects'),
+        # 'keywords': data.get('keywords'),
+        # 'careers': data.get('careers'),
+        # 'skills': data.get('skills'),
+    }
+    return course_model_data
+
+
+def get_execution_site(data, course_provider_model):
+    return {
+        'provider': course_provider_model.id,
+        'name': data.get('name', ''),
+        'code': data.get('code', ''),
+    }
+
+
+def get_instructors(data, course_provider_model):
+    instructors = []
+    for item in data:
+        instructors.append({
+            'provider': course_provider_model.id,
+            'name': item.get('name', ''),
+            'external_id': item.get('external_id', ''),
+            'profile_urls': item.get('profile_urls', ''),
+            'image': item.get('image', {}),
+            'short_bio': item.get('short_bio', ''),
+            'detail_bio': item.get('detail_bio', ''),
+        })
+    return instructors
+
+
+def get_schedules(data):
+    schedules = []
+    for item in data:
+        schedules.append({
+            'section_type': item.get('section_type', ''),
+            'external_version_id': item.get('external_version_id', ''),
+            'name': item.get('name', ''),
+            'description': item.get('description', ''),
+            'start_at': datetime.fromisoformat(item.get('start_at')),
+            'end_at': datetime.fromisoformat(item.get('end_at')),
+            'building_name': item.get('building_name', ''),
+            'building_code': item.get('building_code', ''),
+            'room_name': item.get('room_name', ''),
+        })
+    return schedules
+
+
+def prepare_section_mongo(data, course_provider_model):
+    section_model_data = {
+        'code': data.get('code'),
+        'external_version_id': data.get('external_version_id'),
+        'description': data.get('description'),
+        'registration_url': data.get('registration_url'),
+        'details_url': data.get('details_url'),
+        'start_date': datetime.fromisoformat(data.get('start_date')),
+        'end_date': datetime.fromisoformat(data.get('end_date')),
+        'num_seats': data.get('seat_capacity'),
+        'available_seats': data.get('available_seats'),
+        'is_active': data.get('is_active'),
+        'execution_mode': data.get('execution_mode'),
+        'execution_site': get_execution_site(data.get('execution_site', {}), course_provider_model),
+        'registration_deadline': datetime.fromisoformat(data.get('registration_deadline')),
+        'instructors': get_instructors(data.get('instructors', []), course_provider_model),
+        'course_fee': {'amount': data.get('fee', 0.00), 'currency': 'usd'},
+        'credit_hours': data.get('credit_hours'),
+        'ceu_hours': data.get('ceu_hours'),
+        'clock_hours': data.get('clock_hours'),
+        'load_hours': data.get('load_hours'),
+        'schedules': get_schedules(data.get('schedules', [])),
+        # 'registration_form_data': data.get('registration_form_data'),
+    }
+    return section_model_data
+
+
+def prepare_section_postgres(data, course, course_model):
+    section_data = {
+        'course': course.id,
+        'name': data.get('code'),
+        'fee': data.get('fee'),
+        'seat_capacity': data.get('seat_capacity'),
+        'available_seat': data.get('available_seat'),
+        'execution_mode': data.get('execution_mode'),
+        'registration_deadline': datetime.fromisoformat(data.get('registration_deadline')),
+        'content_db_reference': str(course_model.id),
+        'is_active': data.get('is_active', False),
+        'start_date': datetime.fromisoformat(data.get('start_date')),
+        'end_date': datetime.fromisoformat(data.get('end_date')),
+        'execution_site': data.get('execution_site'),
+    }
+    return section_data
+
+
 @api_view(['POST'])
 @permission_classes([HasStoreAPIKey])
 def publish(request):
@@ -93,149 +229,95 @@ def publish(request):
     contract = CourseSharingContract.objects.filter(store=request.store, is_active=True).first()
     course_provider = contract.course_provider
 
+    # in this query, we add the course provider although we have the id of the course
+    # this is because, we want to make sure we don't change any course to which the
+    # user has no access. since course provider is determined from the secured key
+    # provided as authorization header, user can not fake this.
+
+    try:
+        course_provider_model = CourseProviderModel.objects.get(id=course_provider.content_db_reference)
+    except CourseProviderModel.DoesNotExist:
+        return Response({'message': 'course provider model not found'})
+
     if action == 'course':
-
-        request_data['provider'] = course_provider.content_db_reference
-        request_data['course_provider'] = course_provider.id
-
-        if 'level' in request_data:
-            if request_data['level'] == 'unspecified':
-                request_data['level'] = ''
-
-        if 'course_image_uri' in request_data and request_data['course_image_uri']:
-            del request_data['course_image_uri']
-            # S3_IMAGE_DIR = config('S3_IMAGE_DIR', '')
-            # request_data['course_image_uri'] = rename_file(request_data['course_image_uri'], request_data['course_image_uri'].name)
-            # request_data['image'] = {'original': S3_IMAGE_DIR + '/' + request_data['course_image_uri'].name}
-
-        # preparation for mongodb done
-
-        request_data['from_importer'] = False
+        course_model_data = prepare_course_mongo(request_data, course_provider, course_provider_model)
+        course_data = prepare_course_postgres(request_data, course_provider, course_provider_model)
 
         # course save in mongodb
-        course_model = CourseModel.with_deleted_objects(external_id=request_data['external_id'], provider=request_data['provider'])
-        raw_query = {'$set': request_data}
-        # import ipdb; ipdb.set_trace()
-        result = course_model.update_one(__raw__=raw_query, upsert=True, full_result=True)
 
-        # course save in postgres
-        request_data['content_db_reference'] = str(result.upserted_id)
+        # try:
+        #     course_model = CourseModel.with_deleted_objects.get(
+        #         external_id=course_model_data['external_id'],
+        #         provider=course_model_data['provider']
+        #     )
+        # except CourseModel.DoesNotExist:
+        #     db = get_db()
+        #     result = db.course.insert_one(course_model_data)
+        #     course_data['content_db_reference'] = str(result.inserted_id)
+        # else:
+        #     course_model.update(__raw__={'$set': course_model_data}, upsert=True)
+        #     course_data['content_db_reference'] = str(course_model.id)
+        db = get_db()
+        query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
+        doc = db.course.find_one(query)
+
+        if doc is None:
+            result = db.course.insert_one(course_model_data)
+            course_data['content_db_reference'] = str(result.inserted_id)
+        else:
+            result = db.course.update_one(query, {'$set': course_model_data}, upsert=True)
+            course_data['content_db_reference'] = str(doc['_id'])
+
+        # save in postgres
+
+        # if result.raw_result['updatedExisting']:
+        #     course_data['content_db_reference'] = str(course_model.id)
+        # else:
+        #     course_data['content_db_reference'] = str(result.upserted_id)
 
         with scopes_disabled():
-
             try:
-                course = Course.objects.get(slug=request_data['slug'])
+                course = Course.objects.get(slug=course_data['slug'])
             except Course.DoesNotExist:
-                course_serializer = CourseSerializer(data=request_data)
+                course_serializer = CourseSerializer(data=course_data)
             else:
-                course_serializer = CourseSerializer(course=course, data=request_data)
+                course_serializer = CourseSerializer(course, data=course_data)
 
-            with scopes_disabled():
-                course_serializer.is_valid(raise_exception=True)
-
-            course_serializer.save()
+            if course_serializer.is_valid(raise_exception=True):
+                course_serializer.save()
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
     if action == 'section':
+
+        try:
+            course_model = CourseModel.objects.get(
+                provider=course_provider_model,
+                external_id=request_data['course_external_id']
+            )
+        except CourseModel.DoesNotExist:
+            return Response({'message': 'course model not found'})
+
         with scopes_disabled():
-            # in this query, we add the course provider although we have the id of the course
-            # this is because, we want to make sure we don't change any course to which the
-            # user has no access. since course provider is determined from the secured key
-            # provided as authorization header, user can not fake this.
-            course = get_object_or_404(Course, course_provider__id=course_provider.id, id=request_data['course'])
+            course = get_object_or_404(Course, course_provider__id=course_provider.id, content_db_reference=str(course_model.id))
 
-        if int(request_data['available_seat']) > int(request_data['seat_capacity']):
-            raise serializers.ValidationError(
-                {
-                    'available_seat': 'Available seat can not be greater than seat capacity'
-                }
-            )
+        section_model_data = prepare_section_mongo(request_data, course_provider_model)
+        course_model.update(add_to_set__sections=section_model_data)
 
-        start_date = None
-        end_date = None
-        registration_deadline = None
-
-        if 'start_date' in request_data:
-            start_date = datetime.fromisoformat(request_data['start_date'])
-
-        if 'end_date' in request_data:
-            end_date = datetime.fromisoformat(request_data['end_date'])
-
-        if 'registration_deadline' in request_data:
-            registration_deadline = datetime.fromisoformat(
-                request_data['registration_deadline']
-            )
-
-        if start_date and end_date and start_date > end_date:
-            raise serializers.ValidationError(
-                {'start_date': 'Start date must not be in the future from end date'}
-            )
-
-        if registration_deadline and end_date and registration_deadline > end_date:
-            raise serializers.ValidationError(
-                {
-                    'registration_deadline': 'Final Enrollment Date must not be after end date'
-                }
-            )
-
-        serializer_mongo = CheckSectionModelValidationSerializer(data=request_data)
-        serializer_mongo.is_valid(raise_exception=True)
-
-        request_data['content_db_reference'] = course.content_db_reference
+        section_data = prepare_section_postgres(request_data, course, course_model)
 
         with scopes_disabled():
             try:
-                section = course.sections.get(name=request_data['name'])
+                section = course.sections.get(name=section_data['name'])
             except Section.DoesNotExist:
-                serializer = SectionSerializer(data=request_data)
+                serializer = SectionSerializer(data=section_data)
             else:
-                serializer = SectionSerializer(section, data=request_data)
+                serializer = SectionSerializer(section, data=section_data)
 
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
-
-        del request_data['name']
-        del request_data['content_db_reference']
-        del request_data['seat_capacity']
-        del request_data['fee']
-        del request_data['course']
-        del request_data['available_seat']
-
-        # course_model.sections.append(SectionModel(**request_data))
-        # course_model.save()
-
-        # course save in mongodb
-        # course_model = CourseModel.with_deleted_objects(external_id=request_data['external_id'], provider=request_data['provider'])
-        course_model = CourseModel.objects(id=course.content_db_reference).update_one(add_to_set__sections=request_data)
-        # raw_query = {'$push_to_set__sections': request_data}
-        # # import ipdb; ipdb.set_trace()
-        # result = course_model.update_one(__raw__=raw_query)
 
     else:
         return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
 
     return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
-
-
-
-# # def rename_file(file_object, image_name):
-# #     def getsize(f):
-# #         f.seek(0)
-# #         f.read()
-# #         s = f.tell()
-# #         f.seek(0)
-# #         return s
-
-# #     image_name = image_name.strip()
-# #     content_type, charset = mimetypes.guess_type(image_name)
-# #     size = getsize(file_object)
-# #     new_file_name = str(uuid.uuid4()) + '.' + str(content_type).split('/')[-1]
-# #     return InMemoryUploadedFile(
-# #         file=file_object,
-# #         name=new_file_name,
-# #         field_name=None,
-# #         content_type=content_type,
-# #         charset=charset,
-# #         size=size
-# #     )

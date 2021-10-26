@@ -1,71 +1,58 @@
-from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
-
 from publish.permissions import HasStoreAPIKey
-
-from shared_models.models import Cart, StudentProfile, Course, Certificate, CourseEnrollment, CertificateEnrollment, CourseSharingContract
-from models.course.course import Course as CourseModel
-from models.certificate.certificate import Certificate as CertificateModel
-from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
+from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment
 from django_scopes import scopes_disabled
 
 
 def handle_enrollment_event(payload, cart, store):
-    contract = CourseSharingContract.objects.filter(store=store, is_active=True).first()
-    course_provider = contract.course_provider
-    provider = CourseProviderModel.objects.get(id=course_provider.content_db_reference)
-
-    for item in payload['products']:
+    for item in payload['enrollments']:
         try:
-            course_model = CourseModel.objects.get(external_id=item['external_id'], provider=provider)
-        except CourseModel.DoesNotExist:
-            continue
+            enrollment = CourseEnrollment.objects.get(id=item['enrollment_id'])
+        except CourseEnrollment.DoesNotExist:
+            pass
         else:
-            with scopes_disabled():
-                course = Course.objects.get(content_db_reference=str(course_model.id))
-
-            enrollment, created = CourseEnrollment.objects.get_or_create(
-                profile=cart.profile,
-                course=course,
-                store=store,
-                defaults={
-                    'enrollment_time': timezone.now(),
-                    'application_time': timezone.now(),
-                    'status': 'success'
-                }
-            )
+            enrollment.status = item['status']
+            enrollment.save()
 
         try:
-            certificate_model = CertificateModel.objects.get(external_id=item['external_id'])
-        except Certificate.DoesNotExist:
-            continue
+            enrollment = CertificateEnrollment.objects.get(id=item['enrollment_id'])
+        except CertificateEnrollment.DoesNotExist:
+            pass
         else:
-            with scopes_disabled():
-                certificate = Certificate.objects.get(content_db_reference=str(certificate_model.id))
-            enrollment, created = CertificateEnrollment.objects.get_or_create(
-                profile=cart.profile,
-                certificate=certificate,
-                store=store,
-                defaults={
-                    'application_time': timezone.now(),
-                    'enrollment_time': timezone.now(),
-                    'status': 'success'
-                }
-            )
+            enrollment.status = item['status']
+            enrollment.save()
 
     return True
 
 
 def handle_student_event(payload, cart, store):
-    try:
-        student_profile = StudentProfile.objects.get(profile=cart.profile, store=store)
-    except StudentProfile.DoesNotExist:
-        pass
-    else:
-        student_profile.external_profile_id = str(payload['school_student_id'])
-        student_profile.save()
+    for item in payload['students']:
+        profile = None
+        try:
+            enrollment = CourseEnrollment.objects.get(id=item['enrollment_id'])
+        except CourseEnrollment.DoesNotExist:
+            pass
+        else:
+            profile = enrollment.profile
+
+        try:
+            enrollment = CertificateEnrollment.objects.get(id=item['enrollment_id'])
+        except CertificateEnrollment.DoesNotExist:
+            pass
+        else:
+            profile = enrollment.profile
+
+        if profile is not None:
+            try:
+                student_profile = StudentProfile.objects.get(profile=enrollment.profile, store=store)
+            except StudentProfile.DoesNotExist:
+                pass
+            else:
+                student_profile.external_profile_id = str(payload['school_student_id'])
+                student_profile.save()
+    return True
 
 
 @api_view(['POST'])

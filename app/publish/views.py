@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from bson import ObjectId
 from mongoengine import get_db
 
-from shared_models.models import Course, Section, CourseSharingContract
+from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from models.courseprovider.provider_site import CourseProviderSite as CourseProviderSiteModel
 from models.courseprovider.instructor import Instructor as InstructorModel
@@ -20,6 +20,7 @@ from publish.permissions import HasStoreAPIKey
 from django_scopes import scopes_disabled
 
 from publish.serializers import CourseSerializer, SectionSerializer
+from campuslibs.loggers.mongo import save_to_mongo
 
 
 def get_datetime_obj(date_str, time_str=None):
@@ -182,8 +183,11 @@ def prepare_section_postgres(data, course, course_model):
 @api_view(['POST'])
 @permission_classes([HasStoreAPIKey])
 def publish(request):
-    # prepare the data for mongodb
     payload = request.data.copy()
+
+    # first of all, save everything to mongodb
+    mongo_data = {'payload': payload, 'status': 'pending'}
+    save_to_mongo(data=mongo_data, collection='partner_data')
 
     action = payload['action']
     request_data = payload['data']
@@ -220,6 +224,13 @@ def publish(request):
             if course_serializer.is_valid(raise_exception=True):
                 course = course_serializer.save()
 
+            # create StoreCourse
+            store_course, created = StoreCourse.objects.get_or_create(
+                course=course,
+                store=request.store,
+                defaults={'is_published': False, 'enrollment_ready': True}
+            )
+
             course_model = CourseModel.objects.get(id=course.content_db_reference)
 
             for section in request_data['sections']:
@@ -232,7 +243,27 @@ def publish(request):
                     serializer = SectionSerializer(section, data=section_data)
 
                 if serializer.is_valid(raise_exception=True):
-                    serializer.save()
+                    section = serializer.save()
+
+                # create product
+                product, created = Product.objects.get_or_create(
+                    store=request.store,
+                    external_id=course_model_data['external_id'],
+                    product_type='section',
+                    defaults={
+                        'title': course.title,
+                        'tax_code': 'ST080031',
+                        'fee': section.fee,
+                    }
+                )
+
+                # create store course section
+                StoreCourseSection.objects.get_or_create(
+                    store_course=store_course,
+                    section=section,
+                    is_published=False,
+                    product=product
+                )
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 

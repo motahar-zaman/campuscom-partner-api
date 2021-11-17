@@ -17,7 +17,8 @@ def handle_enrollment_event(payload, cart, store):
             enrollment.save()
 
         try:
-            enrollment = CertificateEnrollment.objects.get(id=item['enrollment_id'])
+            enrollment = CertificateEnrollment.objects.get(
+                id=item['enrollment_id'])
         except CertificateEnrollment.DoesNotExist:
             pass
         else:
@@ -38,14 +39,16 @@ def handle_student_event(payload, cart, store):
             profile = enrollment.profile
 
         try:
-            enrollment = CertificateEnrollment.objects.get(id=item['enrollment_id'])
+            enrollment = CertificateEnrollment.objects.get(
+                id=item['enrollment_id'])
         except CertificateEnrollment.DoesNotExist:
             pass
         else:
             profile = enrollment.profile
         if profile is not None:
             try:
-                student_profile = StudentProfile.objects.get(profile=profile, store=store)
+                student_profile = StudentProfile.objects.get(
+                    profile=profile, store=store)
             except StudentProfile.DoesNotExist:
                 StudentProfile.objects.create(
                     profile=profile,
@@ -53,7 +56,8 @@ def handle_student_event(payload, cart, store):
                     external_profile_id=str(item['school_student_id'])
                 )
             else:
-                student_profile.external_profile_id = str(item['school_student_id'])
+                student_profile.external_profile_id = str(
+                    item['school_student_id'])
                 student_profile.save()
     return True
 

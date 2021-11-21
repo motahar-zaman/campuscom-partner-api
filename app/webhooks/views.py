@@ -1,12 +1,12 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
-from publish.permissions import HasStoreAPIKey
-from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment
+from publish.permissions import HasCourseProviderAPIKey
+from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, CourseSharingContract
 from django_scopes import scopes_disabled
 
 
-def handle_enrollment_event(payload, cart, store):
+def handle_enrollment_event(payload, cart):
     for item in payload['enrollments']:
         try:
             enrollment = CourseEnrollment.objects.get(id=item['enrollment_id'])
@@ -28,7 +28,7 @@ def handle_enrollment_event(payload, cart, store):
     return True
 
 
-def handle_student_event(payload, cart, store):
+def handle_student_event(payload, cart, course_provider):
     for item in payload['students']:
         profile = None
         try:
@@ -46,24 +46,26 @@ def handle_student_event(payload, cart, store):
         else:
             profile = enrollment.profile
         if profile is not None:
-            try:
-                student_profile = StudentProfile.objects.get(
-                    profile=profile, store=store)
-            except StudentProfile.DoesNotExist:
-                StudentProfile.objects.create(
-                    profile=profile,
-                    store=store,
-                    external_profile_id=str(item['school_student_id'])
-                )
-            else:
-                student_profile.external_profile_id = str(
-                    item['school_student_id'])
-                student_profile.save()
+            contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
+            for contract in contracts:
+                try:
+                    student_profile = StudentProfile.objects.get(
+                        profile=profile, store=contract.store)
+                except StudentProfile.DoesNotExist:
+                    StudentProfile.objects.create(
+                        profile=profile,
+                        store=contract.store,
+                        external_profile_id=str(item['school_student_id'])
+                    )
+                else:
+                    student_profile.external_profile_id = str(
+                        item['school_student_id'])
+                    student_profile.save()
     return True
 
 
 @api_view(['POST'])
-@permission_classes([HasStoreAPIKey])
+@permission_classes([HasCourseProviderAPIKey])
 def webhooks(request):
     try:
         even_type = request.data['event_type']
@@ -87,9 +89,9 @@ def webhooks(request):
             return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
 
     if even_type == 'enrollment':
-        handle_enrollment_event(payload, cart, request.store)
+        handle_enrollment_event(payload, cart)
     elif even_type == 'student':
-        handle_student_event(payload, cart, request.store)
+        handle_student_event(payload, cart, request.course_provider)
     ###
     # and the events goes on and on
     # ....

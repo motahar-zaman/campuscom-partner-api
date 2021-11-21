@@ -16,7 +16,7 @@ from rest_framework.status import (
 )
 
 from rest_framework.decorators import api_view, permission_classes
-from publish.permissions import HasStoreAPIKey
+from publish.permissions import HasCourseProviderAPIKey
 from django_scopes import scopes_disabled
 
 from publish.serializers import CourseSerializer, SectionSerializer
@@ -181,7 +181,7 @@ def prepare_section_postgres(data, course, course_model):
 
 
 @api_view(['POST'])
-@permission_classes([HasStoreAPIKey])
+@permission_classes([HasCourseProviderAPIKey])
 def publish(request):
     payload = request.data.copy()
 
@@ -192,8 +192,12 @@ def publish(request):
     action = payload['action']
     request_data = payload['data']
 
-    contract = CourseSharingContract.objects.filter(store=request.store, is_active=True).first()
-    course_provider = contract.course_provider
+    contracts = CourseSharingContract.objects.filter(course_provider=request.course_provider, is_active=True)
+
+    # if there is no section data, nothing is gonna make sense so
+
+    if len(request_data['sections']) == 0:
+        return Response({'message': 'section data is required'}, status=HTTP_200_OK)
 
     # in this query, we add the course provider although we have the id of the course
     # this is because, we want to make sure we don't change any course to which the
@@ -201,13 +205,13 @@ def publish(request):
     # provided as authorization header, user can not fake this.
 
     try:
-        course_provider_model = CourseProviderModel.objects.get(id=course_provider.content_db_reference)
+        course_provider_model = CourseProviderModel.objects.get(id=request.course_provider.content_db_reference)
     except CourseProviderModel.DoesNotExist:
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
-        course_model_data = prepare_course_mongo(request_data, course_provider, course_provider_model)
-        course_data = prepare_course_postgres(request_data, course_provider, course_provider_model)
+        course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
+        course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 
         query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
         doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
@@ -224,46 +228,47 @@ def publish(request):
             if course_serializer.is_valid(raise_exception=True):
                 course = course_serializer.save()
 
-            # create StoreCourse
-            store_course, created = StoreCourse.objects.get_or_create(
-                course=course,
-                store=request.store,
-                defaults={'is_published': False, 'enrollment_ready': True}
-            )
-
             course_model = CourseModel.objects.get(id=course.content_db_reference)
 
-            for section in request_data['sections']:
-                section_data = prepare_section_postgres(section, course, course_model)
-                try:
-                    section = course.sections.get(name=section_data['name'])
-                except Section.DoesNotExist:
-                    serializer = SectionSerializer(data=section_data)
-                else:
-                    serializer = SectionSerializer(section, data=section_data)
-
-                if serializer.is_valid(raise_exception=True):
-                    section = serializer.save()
-
-                # create product
-                product, created = Product.objects.get_or_create(
-                    store=request.store,
-                    external_id=course_model_data['external_id'],
-                    product_type='section',
-                    defaults={
-                        'title': course.title,
-                        'tax_code': 'ST080031',
-                        'fee': section.fee,
-                    }
+            # create StoreCourse
+            for contract in contracts:
+                store_course, created = StoreCourse.objects.get_or_create(
+                    course=course,
+                    store=contract.store,
+                    defaults={'is_published': False, 'enrollment_ready': True}
                 )
 
-                # create store course section
-                StoreCourseSection.objects.get_or_create(
-                    store_course=store_course,
-                    section=section,
-                    is_published=False,
-                    product=product
-                )
+                for section in request_data['sections']:
+                    section_data = prepare_section_postgres(section, course, course_model)
+                    try:
+                        section = course.sections.get(name=section_data['name'])
+                    except Section.DoesNotExist:
+                        serializer = SectionSerializer(data=section_data)
+                    else:
+                        serializer = SectionSerializer(section, data=section_data)
+
+                    if serializer.is_valid(raise_exception=True):
+                        section = serializer.save()
+
+                    # create product
+                    product, created = Product.objects.get_or_create(
+                        store=contract.store,
+                        external_id=course_model_data['external_id'],
+                        product_type='section',
+                        defaults={
+                            'title': course.title,
+                            'tax_code': 'ST080031',
+                            'fee': section.fee,
+                        }
+                    )
+
+                    # create store course section
+                    StoreCourseSection.objects.get_or_create(
+                        store_course=store_course,
+                        section=section,
+                        is_published=False,
+                        product=product
+                    )
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 

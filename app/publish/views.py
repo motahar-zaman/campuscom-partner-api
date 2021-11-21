@@ -253,7 +253,8 @@ def publish(request):
                     # create product
                     product, created = Product.objects.get_or_create(
                         store=contract.store,
-                        external_id=course_model_data['external_id'],
+                        external_id=section.name,  # mandatory field. instead of course external id, it must be a unique filed in section.
+                                                   # because section is a product. course is not.
                         product_type='section',
                         defaults={
                             'title': course.title,
@@ -261,7 +262,6 @@ def publish(request):
                             'fee': section.fee,
                         }
                     )
-
                     # create store course section
                     StoreCourseSection.objects.get_or_create(
                         store_course=store_course,

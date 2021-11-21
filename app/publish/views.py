@@ -263,12 +263,13 @@ def publish(request):
                         }
                     )
                     # create store course section
-                    StoreCourseSection.objects.get_or_create(
-                        store_course=store_course,
-                        section=section,
-                        is_published=False,
-                        product=product
-                    )
+                    if created:
+                        StoreCourseSection.objects.get_or_create(
+                            store_course=store_course,
+                            section=section,
+                            is_published=False,
+                            product=product
+                        )
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 

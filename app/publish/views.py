@@ -219,7 +219,7 @@ def publish(request):
 
         with scopes_disabled():
             try:
-                course = Course.objects.get(slug=course_data['slug'])
+                course = Course.objects.get(slug=course_data['slug'], course_provider=request.course_provider)
             except Course.DoesNotExist:
                 course_serializer = CourseSerializer(data=course_data)
             else:

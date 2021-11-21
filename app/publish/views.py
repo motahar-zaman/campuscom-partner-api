@@ -219,7 +219,7 @@ def publish(request):
 
         with scopes_disabled():
             try:
-                course = Course.objects.get(slug=course_data['slug'])
+                course = Course.objects.get(slug=course_data['slug'], course_provider=request.course_provider)
             except Course.DoesNotExist:
                 course_serializer = CourseSerializer(data=course_data)
             else:
@@ -263,12 +263,13 @@ def publish(request):
                         }
                     )
                     # create store course section
-                    StoreCourseSection.objects.get_or_create(
-                        store_course=store_course,
-                        section=section,
-                        is_published=False,
-                        product=product
-                    )
+                    if created:
+                        StoreCourseSection.objects.get_or_create(
+                            store_course=store_course,
+                            section=section,
+                            is_published=False,
+                            product=product
+                        )
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 

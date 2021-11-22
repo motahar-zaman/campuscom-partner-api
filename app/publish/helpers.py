@@ -180,7 +180,7 @@ def translate_data(data, mapping):
             elif key == 'instructors':
                 item_data[key] = []  # translate_data(item['instructors'], value)
             elif key == 'schedules':
-                item_data[key] = translate_data(item['schedules'], value)
+                item_data[key] = translate_data(item.get('schedules', []), value)
 
             elif key == 'execution_mode':
                 item_data[key] = item.get(value, 'self-paced')
@@ -249,7 +249,7 @@ def transale_j1_data(request_data):
 
     for key, value in mapping.items():
         if key == 'sections':
-            data[key] = translate_data(request_data['sections'], value)
+            data[key] = translate_data(request_data.get('sections', []), value)
         else:
             data[key] = request_data[value]
     return data

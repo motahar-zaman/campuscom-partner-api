@@ -109,7 +109,7 @@ def prepare_course_mongo(data, course_provider, course_provider_model):
         'title': data.get('title'),
         'slug': data.get('slug'),
         'description': data.get('description'),
-        'sections': prepare_section_mongo(data['sections'], course_provider_model)
+        'sections': prepare_section_mongo(data.get('sections', []), course_provider_model)
     }
     return course_model_data
 

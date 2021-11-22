@@ -1,5 +1,6 @@
 from bson import ObjectId
 from mongoengine import get_db
+from decimal import Decimal
 
 from datetime import datetime
 
@@ -42,6 +43,33 @@ def get_instructors(data, course_provider_model):
 def prepare_section_mongo(data, course_provider_model):
     section_data = []
     for item in data:
+        try:
+            num_seats = int(item.get('num_seats', 0))
+        except ValueError:
+            num_seats = 0
+
+        try:
+            course_fee = float(item.get('course_fee', 0.00))
+        except ValueError:
+            course_fee = 0.00
+
+        try:
+            credit_hours = float(item.get('credit_hours', 0.00))
+        except ValueError:
+            credit_hours = 0.00
+        try:
+            ceu_hours = float(item.get('ceu_hours', 0.00))
+        except ValueError:
+            ceu_hours = 0.00
+        try:
+            clock_hours = float(item.get('clock_hours', 0.00))
+        except ValueError:
+            clock_hours = 0.00
+        try:
+            load_hours = float(item.get('load_hours', 0.00))
+        except ValueError:
+            load_hours = 0.00
+
         section_data.append({
             'code': item.get('code'),
             'external_version_id': item.get('external_version_id'),
@@ -50,18 +78,18 @@ def prepare_section_mongo(data, course_provider_model):
             'details_url': item.get('details_url'),
             'start_date': get_datetime_obj(item.get('start_date')),
             'end_date': get_datetime_obj(item.get('end_date')),
-            'num_seats': item.get('num_seats'),
+            'num_seats': num_seats,
             'available_seats': item.get('available_seats'),
             'is_active': item.get('is_active'),
             'execution_mode': item.get('execution_mode'),
             'execution_site': get_execution_site(item.get('execution_site'), course_provider_model),
             'registration_deadline': get_datetime_obj(item.get('registration_deadline')),
             'instructors': get_instructors(item.get('instructors', []), course_provider_model),
-            'course_fee': {'amount': item.get('course_fee', 0.00), 'currency': 'usd'},
-            'credit_hours': item.get('credit_hours'),
-            'ceu_hours': item.get('ceu_hours'),
-            'clock_hours': item.get('clock_hours'),
-            'load_hours': item.get('load_hours'),
+            'course_fee': {'amount': course_fee, 'currency': 'usd'},
+            'credit_hours': credit_hours,
+            'ceu_hours': ceu_hours,
+            'clock_hours': clock_hours,
+            'load_hours': load_hours,
             'schedules': get_schedules(item.get('schedules', []))
         })
     return section_data
@@ -149,9 +177,9 @@ def prepare_section_postgres(data, course, course_model):
     section_data = {
         'course': course.id,
         'name': data.get('code'),
-        'fee': data.get('course_fee'),
-        'num_seats': data.get('num_seats'),
-        'num_seats': data.get('num_seats'),
+        'fee': Decimal(data.get('course_fee', '0.00')),
+        'seat_capacity': data.get('num_seats'),
+        'available_seat': data.get('num_seats'),
         'execution_mode': data.get('execution_mode', 'self-paced'),
         'registration_deadline': get_datetime_obj(data.get('registration_deadline')),
         'content_db_reference': str(course_model.id),
@@ -160,6 +188,7 @@ def prepare_section_postgres(data, course, course_model):
         'end_date': get_datetime_obj(data.get('end_date')),
         'execution_site': data.get('execution_site'),
     }
+
     return section_data
 
 

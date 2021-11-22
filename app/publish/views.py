@@ -94,8 +94,8 @@ def publish(request):
                 defaults={'is_published': True, 'enrollment_ready': True}
             )
 
-            for section in request_data.get('sections', []):
-                section_data = prepare_section_postgres(section, course, course_model)
+            for section_data in request_data.get('sections', []):
+                section_data = prepare_section_postgres(section_data, course, course_model)
                 try:
                     section = course.sections.get(name=section_data['name'])
                 except Section.DoesNotExist:

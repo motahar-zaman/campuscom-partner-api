@@ -62,7 +62,7 @@ def publish(request):
 
     if action == 'j1-course':
         request_data = transale_j1_data(request_data)
-    if action == 'course':
+    elif action == 'course':
         pass
     else:
         return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
@@ -94,7 +94,7 @@ def publish(request):
                 defaults={'is_published': True, 'enrollment_ready': True}
             )
 
-            for section in request_data['sections']:
+            for section in request_data.get('sections', []):
                 section_data = prepare_section_postgres(section, course, course_model)
                 try:
                     section = course.sections.get(name=section_data['name'])
@@ -132,7 +132,7 @@ def publish(request):
                     product.product_type = 'section'
                     product.title = course.title
                     product.tax_code = 'ST080031'
-                    product.fee = section.fe
+                    product.fee = section.fee
 
                     product.save()
 

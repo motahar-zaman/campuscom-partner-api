@@ -103,7 +103,7 @@ def prepare_course_mongo(data, course_provider, course_provider_model):
     course_model_data = {
         '_cls': 'Course',
         'provider': ObjectId(course_provider.content_db_reference),
-        'from_importer': False,
+        'from_importer': True,
         'external_id': data.get('external_id'),
         'code': data.get('code'),
         'title': data.get('title'),

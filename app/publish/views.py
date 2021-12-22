@@ -92,7 +92,7 @@ def publish(request):
                 store_course, created = StoreCourse.objects.get_or_create(
                     course=course,
                     store=contract.store,
-                    defaults={'is_published': True, 'enrollment_ready': True}
+                    defaults={'enrollment_ready': True, 'is_published': False, 'is_featured': False}
                 )
 
                 for section_data in request_data.get('sections', []):

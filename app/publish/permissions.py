@@ -1,6 +1,6 @@
 from django.http import HttpRequest
 import typing
-from shared_models.models import StoreAPIKey
+from shared_models.models import CourseProviderAPIKey
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -26,8 +26,8 @@ from rest_framework_api_key.permissions import BaseHasAPIKey
 #             return True
 
 
-class HasStoreAPIKey(BaseHasAPIKey):
-    model = StoreAPIKey
+class HasCourseProviderAPIKey(BaseHasAPIKey):
+    model = CourseProviderAPIKey
 
     def has_permission(self, request: HttpRequest, view: typing.Any) -> bool:
         assert self.model is not None, (
@@ -38,7 +38,7 @@ class HasStoreAPIKey(BaseHasAPIKey):
         if not key:
             return False
 
-        store_api_key = StoreAPIKey.objects.get_from_key(key)
-        request.store = store_api_key.store
+        course_provider_api_key = CourseProviderAPIKey.objects.get_from_key(key)
+        request.course_provider = course_provider_api_key.course_provider
 
         return self.model.objects.is_valid(key)

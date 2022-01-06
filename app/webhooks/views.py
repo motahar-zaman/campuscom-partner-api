@@ -9,7 +9,7 @@ from django_scopes import scopes_disabled
 def handle_enrollment_event(payload, cart):
     for item in payload['enrollments']:
         try:
-            enrollment = CourseEnrollment.objects.get(id=item['enrollment_id'])
+            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
         except CourseEnrollment.DoesNotExist:
             pass
         else:
@@ -18,7 +18,7 @@ def handle_enrollment_event(payload, cart):
 
         try:
             enrollment = CertificateEnrollment.objects.get(
-                id=item['enrollment_id'])
+                ref_id=item['enrollment_id'])
         except CertificateEnrollment.DoesNotExist:
             pass
         else:
@@ -32,7 +32,7 @@ def handle_student_event(payload, cart, course_provider):
     for item in payload['students']:
         profile = None
         try:
-            enrollment = CourseEnrollment.objects.get(id=item['enrollment_id'])
+            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
         except CourseEnrollment.DoesNotExist:
             pass
         else:
@@ -40,7 +40,7 @@ def handle_student_event(payload, cart, course_provider):
 
         try:
             enrollment = CertificateEnrollment.objects.get(
-                id=item['enrollment_id'])
+                ref_id=item['enrollment_id'])
         except CertificateEnrollment.DoesNotExist:
             pass
         else:
@@ -84,7 +84,7 @@ def webhooks(request):
 
     with scopes_disabled():
         try:
-            cart = Cart.objects.get(id=cart_id)
+            cart = Cart.objects.get(ref_id=cart_id)
         except Cart.DoesNotExist:
             return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
 

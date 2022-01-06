@@ -174,10 +174,13 @@ def get_execution_site(data, course_provider_model):
 
 
 def prepare_section_postgres(data, course, course_model):
+    fee = Decimal(data.get('course_fee', '0.01'))
+    if not fee > 0.00:
+        fee = Decimal('0.01')
     section_data = {
         'course': course.id,
         'name': data.get('code'),
-        'fee': Decimal(data.get('course_fee', '0.00')),
+        'fee': fee,
         'seat_capacity': data.get('num_seats'),
         'available_seat': data.get('num_seats'),
         'execution_mode': data.get('execution_mode', 'self-paced'),

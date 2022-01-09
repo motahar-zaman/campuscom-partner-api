@@ -4,6 +4,7 @@ from rest_framework.status import HTTP_200_OK
 from publish.permissions import HasCourseProviderAPIKey
 from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, CourseSharingContract
 from django_scopes import scopes_disabled
+from campuslibs.loggers.mongo import save_to_mongo
 
 
 def handle_enrollment_event(payload, cart):
@@ -29,7 +30,7 @@ def handle_enrollment_event(payload, cart):
 
 
 def handle_student_event(payload, cart, course_provider):
-    for item in payload['students']:
+    for item in payload['enrollments']:
         profile = None
         try:
             enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
@@ -50,7 +51,8 @@ def handle_student_event(payload, cart, course_provider):
             for contract in contracts:
                 try:
                     student_profile = StudentProfile.objects.get(
-                        profile=profile, store=contract.store)
+                        profile=profile, store=contract.store
+                    )
                 except StudentProfile.DoesNotExist:
                     StudentProfile.objects.create(
                         profile=profile,
@@ -67,6 +69,7 @@ def handle_student_event(payload, cart, course_provider):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def webhooks(request):
+    save_to_mongo(data=request.data.copy(), collection='j1:webhooks')
     try:
         even_type = request.data['event_type']
     except KeyError:
@@ -90,8 +93,9 @@ def webhooks(request):
 
     if even_type == 'enrollment':
         handle_enrollment_event(payload, cart)
-    elif even_type == 'student':
         handle_student_event(payload, cart, request.course_provider)
+    # elif even_type == 'student':
+    #     handle_student_event(payload, cart, request.course_provider)
     ###
     # and the events goes on and on
     # ....

@@ -73,6 +73,7 @@ def prepare_section_mongo(data, course_provider_model):
         section_data.append({
             'code': item.get('code'),
             'external_version_id': item.get('external_version_id'),
+            'external_id': item.get('section_appid', None),
             'description': item.get('description'),
             'registration_url': item.get('registration_url'),
             'details_url': item.get('details_url'),

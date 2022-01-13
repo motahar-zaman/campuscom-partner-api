@@ -9,22 +9,26 @@ from campuslibs.loggers.mongo import save_to_mongo
 
 def handle_enrollment_event(payload, cart):
     for item in payload['enrollments']:
+        status = CourseEnrollment.STATUS_FAILED
+        if item['status'] == 'success':
+            status = CourseEnrollment.STATUS_SUCCESS
+
         try:
             enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
         except CourseEnrollment.DoesNotExist:
             pass
         else:
-            enrollment.status = item['status']
+            enrollment.status = status
             enrollment.save()
 
-        try:
-            enrollment = CertificateEnrollment.objects.get(
-                ref_id=item['enrollment_id'])
-        except CertificateEnrollment.DoesNotExist:
-            pass
-        else:
-            enrollment.status = item['status']
-            enrollment.save()
+        # try:
+        #     enrollment = CertificateEnrollment.objects.get(
+        #         ref_id=item['enrollment_id'])
+        # except CertificateEnrollment.DoesNotExist:
+        #     pass
+        # else:
+        #     enrollment.status = item['status']
+        #     enrollment.save()
 
     return True
 

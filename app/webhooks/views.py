@@ -91,7 +91,7 @@ def webhooks(request):
 
     with scopes_disabled():
         try:
-            cart = Cart.objects.get(ref_id=cart_id)
+            cart = Cart.objects.get(order_ref=cart_id)
         except Cart.DoesNotExist:
             return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
 

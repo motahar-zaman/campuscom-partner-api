@@ -117,6 +117,6 @@ def webhooks(request):
         cart.save()
         return Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
 
-    cart.enrollment_request['enrollment_notification_response'] = {'message': 'unrecognized event type'}
+    cart.enrollment_request['enrollment_notification_response'] = {'message': 'ok'}
     cart.save()
     return Response({'message': 'ok'}, status=HTTP_200_OK)

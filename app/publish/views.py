@@ -117,7 +117,8 @@ def publish(request):
                             product_type='section',
                             title=course.title,
                             tax_code='ST080031',
-                            fee=section.fee
+                            fee=section.fee,
+                            minimum_fee=section.fee
                         )
 
                         StoreCourseSection.objects.get_or_create(
@@ -134,6 +135,7 @@ def publish(request):
                         product.title = course.title
                         product.tax_code = 'ST080031'
                         product.fee = section.fee
+                        product.minimum_fee = section.fee
 
                         product.save()
 

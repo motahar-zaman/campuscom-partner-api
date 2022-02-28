@@ -84,16 +84,24 @@ def webhooks(request):
     except KeyError:
         return Response({'message': 'order_id must be provided'}, status=HTTP_200_OK)
 
+    with scopes_disabled():
+        try:
+            cart = Cart.objects.get(order_ref=cart_id)
+        except Cart.DoesNotExist:
+            return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
+        else:
+            if cart.enrollment_request is None:
+                cart.enrollment_request = {}
+
     try:
         payload = request.data['payload']
     except KeyError:
+        cart.enrollment_request['enrollment_notification_response'] = {'message': 'payload must be provided'}
+        cart.save()
         return Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
-
-    with scopes_disabled():
-        try:
-            cart = Cart.objects.get(ref_id=cart_id)
-        except Cart.DoesNotExist:
-            return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
+    else:
+        cart.enrollment_request['enrollment_notification'] = payload
+        cart.save()
 
     if even_type == 'enrollment':
         handle_enrollment_event(payload, cart)
@@ -105,6 +113,10 @@ def webhooks(request):
     # ....
     ###
     else:
+        cart.enrollment_request['enrollment_notification_response'] = {'message': 'unrecognized event type'}
+        cart.save()
         return Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
 
+    cart.enrollment_request['enrollment_notification_response'] = {'message': 'ok'}
+    cart.save()
     return Response({'message': 'ok'}, status=HTTP_200_OK)

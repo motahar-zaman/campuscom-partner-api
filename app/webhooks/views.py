@@ -18,10 +18,10 @@ def handle_enrollment_event(payload, cart):
             enrollment.status = CourseEnrollment.STATUS_FAILED
             if item['status'] == 'success':
                 enrollment.status = CourseEnrollment.STATUS_SUCCESS
-            with scopes_disabled():
-                payment = enrollment.cart_item.cart.payment_set.first()
-            if payment.amount > 0.0:
-                payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
+                with scopes_disabled():
+                    payment = enrollment.cart_item.cart.payment_set.first()
+                if payment.amount > 0.0:
+                    payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
             enrollment.save()
 
         # try:

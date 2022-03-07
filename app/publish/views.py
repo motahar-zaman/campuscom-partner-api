@@ -29,8 +29,11 @@ from .helpers import (
     get_schedules,
     prepare_section_mongo,
     prepare_section_postgres,
-    transale_j1_data
+    transale_j1_data,
+    get_data
 )
+import json
+from bson.json_util import dumps
 
 from publish.serializers import CourseSerializer, SectionSerializer
 from campuslibs.loggers.mongo import save_to_mongo
@@ -156,3 +159,18 @@ def publish(request):
         return Response({'message': str(result.inserted_id)}, status=HTTP_200_OK)
 
     return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([HasCourseProviderAPIKey])
+def job_status(request, **kwargs):
+    job_id = kwargs['job_id']
+    query = {'job_id': ObjectId(job_id)}
+    collection = 'queue_item'
+    datas = get_data(collection, query)
+
+    data_list = json.loads(dumps(datas))
+
+    print(datas)
+    return Response({'data': data_list}, status=HTTP_200_OK)
+

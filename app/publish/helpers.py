@@ -4,6 +4,9 @@ from decimal import Decimal
 
 from datetime import datetime
 
+from json import JSONEncoder
+from bson.objectid import ObjectId
+
 
 def get_schedules(data):
     schedules = []
@@ -303,4 +306,12 @@ def transale_j1_data(request_data):
             data[key] = translate_data(request_data.get('sections', []), value)
         else:
             data[key] = request_data[value]
+    return data
+
+
+def get_data(collection, query):
+    db = get_db()
+    coll = db[collection]
+    data = coll.find(query)
+
     return data

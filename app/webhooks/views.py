@@ -5,20 +5,23 @@ from publish.permissions import HasCourseProviderAPIKey
 from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, CourseSharingContract
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
+from .utils import payment_transaction
 
 
 def handle_enrollment_event(payload, cart):
     for item in payload['enrollments']:
-        status = CourseEnrollment.STATUS_FAILED
-        if item['status'] == 'success':
-            status = CourseEnrollment.STATUS_SUCCESS
-
         try:
             enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
         except CourseEnrollment.DoesNotExist:
             pass
         else:
-            enrollment.status = status
+            enrollment.status = CourseEnrollment.STATUS_FAILED
+            if item['status'] == 'success':
+                enrollment.status = CourseEnrollment.STATUS_SUCCESS
+                with scopes_disabled():
+                    payment = enrollment.cart_item.cart.payment_set.first()
+                if payment.amount > 0.0:
+                    payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
             enrollment.save()
 
         # try:

@@ -45,7 +45,8 @@ def publish(request):
     payload = request.data.copy()
 
     # first of all, save everything to mongodb
-    mongo_data = {'payload': payload, 'status': 'pending'}
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    mongo_data = {'payload': payload, 'status': [{'message': 'pending', 'time': current_time}]}
     save_to_mongo(data=mongo_data, collection='partner_data')
 
     action = payload['action']

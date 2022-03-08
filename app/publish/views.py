@@ -45,8 +45,7 @@ def publish(request):
     payload = request.data.copy()
 
     # first of all, save everything to mongodb
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    mongo_data = {'payload': payload, 'status': [{'message': 'pending', 'time': current_time}]}
+    mongo_data = {'payload': payload,  'status': 'initiated'}
     save_to_mongo(data=mongo_data, collection='partner_data')
 
     action = payload['action']
@@ -146,8 +145,10 @@ def publish(request):
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
     elif action == 'record':
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)
         mongo_data['course_provider_id'] = str(request.course_provider.id)
+        mongo_data['log'] = [{'message': 'initiating', 'time': current_time}]
 
         collection = 'publish_job'
 

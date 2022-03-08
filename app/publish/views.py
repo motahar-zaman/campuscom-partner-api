@@ -148,7 +148,7 @@ def publish(request):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)
         mongo_data['course_provider_id'] = str(request.course_provider.id)
-        mongo_data['log'] = [{'message': 'initiating', 'time': current_time}]
+        mongo_data['log'] = [{'message': 'initiated', 'time': current_time}]
 
         collection = 'publish_job'
 

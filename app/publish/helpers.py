@@ -6,6 +6,9 @@ from datetime import datetime
 
 from json import JSONEncoder
 from bson.objectid import ObjectId
+from publish.serializers import CourseSerializer, SectionSerializer
+from models.course.course import Course as CourseModel
+from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
 
 
 def get_schedules(data):
@@ -315,3 +318,78 @@ def get_data(collection, query):
     data = coll.find(query)
 
     return data
+
+
+def j1_publish(request_data, contracts):
+    course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
+    course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
+
+    query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
+    doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
+    course_data['content_db_reference'] = str(doc_id)
+    with scopes_disabled():
+        try:
+            course = Course.objects.get(slug=course_data['slug'], course_provider=request.course_provider)
+        except Course.DoesNotExist:
+            course_serializer = CourseSerializer(data=course_data)
+        else:
+            course_serializer = CourseSerializer(course, data=course_data)
+
+        if course_serializer.is_valid(raise_exception=True):
+            course = course_serializer.save()
+
+        course_model = CourseModel.objects.get(id=course.content_db_reference)
+
+        # create StoreCourse
+        for contract in contracts:
+            store_course, created = StoreCourse.objects.get_or_create(
+                course=course,
+                store=contract.store,
+                defaults={'enrollment_ready': True, 'is_published': False, 'is_featured': False}
+            )
+
+            for section_data in request_data.get('sections', []):
+                section_data = prepare_section_postgres(section_data, course, course_model)
+                try:
+                    section = course.sections.get(name=section_data['name'])
+                except Section.DoesNotExist:
+                    serializer = SectionSerializer(data=section_data)
+                else:
+                    serializer = SectionSerializer(section, data=section_data)
+
+                if serializer.is_valid(raise_exception=True):
+                    section = serializer.save()
+
+                try:
+                    store_course_section = StoreCourseSection.objects.get(store_course=store_course, section=section)
+                except StoreCourseSection.DoesNotExist:
+                    # create product
+                    product = Product.objects.create(
+                        store=contract.store,
+                        external_id=course_model_data['external_id'],
+                        product_type='section',
+                        title=course.title,
+                        tax_code='ST080031',
+                        fee=section.fee,
+                        minimum_fee=section.fee
+                    )
+
+                    StoreCourseSection.objects.get_or_create(
+                        store_course=store_course,
+                        section=section,
+                        is_published=False,
+                        product=product
+                    )
+                else:
+                    product = store_course_section.product
+                    product.store = contract.store
+                    product.external_id = course_model_data['external_id']
+                    product.product_type = 'section'
+                    product.title = course.title
+                    product.tax_code = 'ST080031'
+                    product.fee = section.fee
+                    product.minimum_fee = section.fee
+
+                    product.save()
+
+    return True

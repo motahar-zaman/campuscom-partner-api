@@ -5,44 +5,40 @@ from publish.permissions import HasCourseProviderAPIKey
 from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, CourseSharingContract
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
+from .utils import payment_transaction
 
 
-def handle_enrollment_event(payload, cart):
+def handle_enrollment_event(payload, cart, course_provider):
+    with scopes_disabled():
+        cart_items = cart.cart_items.all()
     for item in payload['enrollments']:
-        status = CourseEnrollment.STATUS_FAILED
-        if item['status'] == 'success':
-            status = CourseEnrollment.STATUS_SUCCESS
-
         try:
-            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
+            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'], cart_item__in=cart_items, course__course_provider=course_provider)
         except CourseEnrollment.DoesNotExist:
             pass
         else:
-            enrollment.status = status
+            enrollment.status = CourseEnrollment.STATUS_FAILED
+            if item['status'] == 'success':
+                enrollment.status = CourseEnrollment.STATUS_SUCCESS
+                with scopes_disabled():
+                    payment = enrollment.cart_item.cart.payment_set.first()
+                if payment.amount > 0.0:
+                    payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
             enrollment.save()
-
-        # try:
-        #     enrollment = CertificateEnrollment.objects.get(
-        #         ref_id=item['enrollment_id'])
-        # except CertificateEnrollment.DoesNotExist:
-        #     pass
-        # else:
-        #     enrollment.status = item['status']
-        #     enrollment.save()
-
     return True
 
 
 def handle_student_event(payload, cart, course_provider):
+    with scopes_disabled():
+        cart_items = cart.cart_items.all()
     for item in payload['enrollments']:
         profile = None
         try:
-            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'])
+            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'], cart_item__in=cart_items, course__course_provider=course_provider)
         except CourseEnrollment.DoesNotExist:
             pass
         else:
             profile = enrollment.profile
-
         try:
             enrollment = CertificateEnrollment.objects.get(
                 ref_id=item['enrollment_id'])
@@ -104,14 +100,9 @@ def webhooks(request):
         cart.save()
 
     if even_type == 'enrollment':
-        handle_enrollment_event(payload, cart)
+        handle_enrollment_event(payload, cart, request.course_provider)
         handle_student_event(payload, cart, request.course_provider)
-    # elif even_type == 'student':
-    #     handle_student_event(payload, cart, request.course_provider)
-    ###
-    # and the events goes on and on
-    # ....
-    ###
+
     else:
         cart.enrollment_request['enrollment_notification_response'] = {'message': 'unrecognized event type'}
         cart.save()

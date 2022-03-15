@@ -9,6 +9,7 @@ from bson.objectid import ObjectId
 from publish.serializers import CourseSerializer, SectionSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
+from django_scopes import scopes_disabled
 
 
 def get_schedules(data):

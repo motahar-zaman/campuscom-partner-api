@@ -73,7 +73,7 @@ def publish(request):
 
     if action == 'j1-course':
         request_data = transale_j1_data(request_data)
-        j1_publish(request_data, contracts)
+        j1_publish(request, request_data, contracts, course_provider_model)
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 

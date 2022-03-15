@@ -72,3 +72,4 @@ class PublishLogModelSerializer(DocumentSerializer):
 
     class Meta:
         model = PublishLogModel
+        fields = ('data', 'publish_job_id', 'publish_type', 'entity_id', 'status', 'logs')

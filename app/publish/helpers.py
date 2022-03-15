@@ -320,7 +320,7 @@ def get_data(collection, query):
     return data
 
 
-def j1_publish(request_data, contracts):
+def j1_publish(request, request_data, contracts, course_provider_model):
     course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 

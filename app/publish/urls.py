@@ -3,6 +3,7 @@ from django.urls import path, include
 
 # from publish.views import PublishViewSet, publish
 from publish.views import publish
+from publish.views import job_status
 
 # router = routers.DefaultRouter()
 
@@ -12,4 +13,5 @@ from publish.views import publish
 urlpatterns = [
     # path('', include(router.urls)),
     path('publish/', publish),
+    path('job-status/<job_id>', job_status),
 ]

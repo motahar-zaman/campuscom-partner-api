@@ -100,6 +100,31 @@ def job_status(request, **kwargs):
     job_id = kwargs['job_id']
     logs = PublishLogModel.objects.filter(publish_job_id=job_id)
     log_serializer = PublishLogModelSerializer(logs, many=True)
+    log_data = log_serializer.data
+    successful = 0
+    failed = 0
+    pending = 0
+    for data in log_data:
+        if data['status'] == "failed":
+            failed += 1
+        elif data['status'] == "completed":
+            successful += 1
+        else:
+            pending += 1
 
-    return Response({'data': log_serializer.data}, status=HTTP_200_OK)
+    response = {
+        'total': successful + failed + pending,
+        'successful': successful,
+        'failed': failed,
+        'pending': pending
+    }
+
+    formatted_data = {
+        'response': response,
+        'job': {
+            'id': job_id,
+            'records': log_data
+        }
+    }
+    return Response({'data': formatted_data}, status=HTTP_200_OK)
 

@@ -68,8 +68,7 @@ class PublishJobModelSerializer(DocumentSerializer):
 
 
 class PublishLogModelSerializer(DocumentSerializer):
-    publish_job_id = ReferenceField(PublishJobModel)
 
     class Meta:
         model = PublishLogModel
-        fields = ('data', 'publish_job_id', 'publish_type', 'entity_id', 'status', 'logs')
+        fields = ('type', 'external_id', 'status', 'time', 'message', 'errors')

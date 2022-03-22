@@ -71,7 +71,7 @@ def handle_student_event(payload, cart, course_provider):
 def webhooks(request):
     save_to_mongo(data=request.data.copy(), collection='j1:webhooks')
     try:
-        even_type = request.data['event_type']
+        event_type = request.data['event_type']
     except KeyError:
         return Response({'message': 'event type must be provided'}, status=HTTP_200_OK)
 
@@ -99,7 +99,7 @@ def webhooks(request):
         cart.enrollment_request['enrollment_notification'] = payload
         cart.save()
 
-    if even_type == 'enrollment':
+    if event_type == 'enrollment':
         handle_enrollment_event(payload, cart, request.course_provider)
         handle_student_event(payload, cart, request.course_provider)
 

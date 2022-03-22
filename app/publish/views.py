@@ -1,13 +1,9 @@
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from bson import ObjectId
-import mongoengine
-
-from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
+from shared_models.models import Profile, CourseSharingContract
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
-from models.courseprovider.provider_site import CourseProviderSite as CourseProviderSiteModel
-from models.courseprovider.instructor import Instructor as InstructorModel
-from datetime import datetime
+
+from publish.serializers import ProfileSerializer
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -128,3 +124,35 @@ def job_status(request, **kwargs):
     }
     return Response({'data': formatted_data}, status=HTTP_200_OK)
 
+
+@api_view(['POST'])
+@permission_classes([HasCourseProviderAPIKey])
+def student(request, **kwargs):
+    try:
+        action = request.data['action']
+    except KeyError:
+        return Response({'data': 'action not specified'})
+
+    try:
+        data_type = request.data['type']
+    except KeyError:
+        return Response({'data': 'type not specified'})
+
+    if action == 'record' and data_type == 'student':
+        try:
+            primary_email = request.data['data']['primary_email']
+        except KeyError:
+            return Response({'data': 'primary_key must be provide'})
+
+        try:
+            profile = Profile.objects.get(primary_email=primary_email)
+        except Profile.DoesNotExist:
+            serializer = ProfileSerializer(data=request.data['data'])
+        else:
+            serializer = ProfileSerializer(profile, data=request.data['data'])
+
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+        return Response({'data': serializer.data}, status=HTTP_200_OK)
+
+    return Response({'data': 'Invalid action or type'}, status=HTTP_200_OK)

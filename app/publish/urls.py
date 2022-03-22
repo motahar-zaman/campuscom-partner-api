@@ -4,6 +4,7 @@ from django.urls import path, include
 # from publish.views import PublishViewSet, publish
 from publish.views import publish
 from publish.views import job_status
+from publish.views import student
 
 # router = routers.DefaultRouter()
 
@@ -14,4 +15,5 @@ urlpatterns = [
     # path('', include(router.urls)),
     path('publish/', publish),
     path('job-status/<job_id>', job_status),
+    path('student/', student),
 ]

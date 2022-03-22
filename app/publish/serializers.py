@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_mongoengine.serializers import DocumentSerializer, EmbeddedDocumentSerializer
 
-from shared_models.models import Course, Section, Product
+from shared_models.models import Course, Section, Product, Profile
 from models.course.section import Section as SectionModel
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from models.course.course import Course as CourseModel
@@ -72,3 +72,10 @@ class PublishLogModelSerializer(DocumentSerializer):
     class Meta:
         model = PublishLogModel
         fields = ('type', 'external_id', 'status', 'time', 'message', 'errors')
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Profile
+        fields = ('id', 'first_name', 'last_name', 'date_of_birth', 'profile_picture_uri', 'primary_email', 'primary_contact_number', 'terms_accepted')

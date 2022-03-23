@@ -128,6 +128,8 @@ def job_status(request, **kwargs):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def student(request, **kwargs):
+    status = ''
+    message = ''
     try:
         action = request.data['action']
     except KeyError:
@@ -147,12 +149,27 @@ def student(request, **kwargs):
         try:
             profile = Profile.objects.get(primary_email=primary_email)
         except Profile.DoesNotExist:
+            status = 'created'
+            message = 'new profile created successfully'
             serializer = ProfileSerializer(data=request.data['data'])
         else:
+            status = 'updated'
+            message = 'profile updated successfully'
             serializer = ProfileSerializer(profile, data=request.data['data'])
 
-        if serializer.is_valid(raise_exception=True):
+        if serializer.is_valid():
             serializer.save()
-        return Response({'data': serializer.data}, status=HTTP_200_OK)
+            data = request.data
+            data['data'] = serializer.data
+            data['status'] = status
+            data['message'] = message
+
+        else:
+            data = request.data
+            data['errors'] = serializer.errors
+            data['status'] = 'failed'
+            data['message'] = 'error occured'
+
+        return Response(data, status=HTTP_200_OK)
 
     return Response({'data': 'Invalid action or type'}, status=HTTP_200_OK)

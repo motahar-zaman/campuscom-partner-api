@@ -5,6 +5,9 @@ from shared_models.models import Course, Section, Product
 from models.course.section import Section as SectionModel
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from models.course.course import Course as CourseModel
+from models.publish.publish_job import PublishJob as PublishJobModel
+from models.log.publish_log import PublishLog as PublishLogModel
+
 
 from rest_framework_mongoengine.fields import ReferenceField
 
@@ -56,3 +59,16 @@ class CheckSectionModelValidationSerializer(EmbeddedDocumentSerializer):
 
     class Meta:
         model = SectionModel
+
+
+class PublishJobModelSerializer(DocumentSerializer):
+
+    class Meta:
+        model = PublishJobModel
+
+
+class PublishLogModelSerializer(DocumentSerializer):
+
+    class Meta:
+        model = PublishLogModel
+        fields = ('type', 'external_id', 'status', 'time', 'message', 'errors')

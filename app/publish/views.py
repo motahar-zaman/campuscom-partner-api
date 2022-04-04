@@ -1,4 +1,5 @@
 from rest_framework.response import Response
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from shared_models.models import Profile, CourseSharingContract
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
@@ -176,6 +177,10 @@ def student(request, **kwargs):
         return Response(data, status=HTTP_200_OK)
 
     return Response({'data': 'Invalid action or type'}, status=HTTP_200_OK)
+
+
+def health_check(request):
+    return HttpResponse(status=HTTP_200_OK)
 
 
 @api_view(['POST'])

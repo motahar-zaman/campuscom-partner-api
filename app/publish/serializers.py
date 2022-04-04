@@ -7,6 +7,7 @@ from models.courseprovider.course_provider import CourseProvider as CourseProvid
 from models.course.course import Course as CourseModel
 from models.publish.publish_job import PublishJob as PublishJobModel
 from models.log.publish_log import PublishLog as PublishLogModel
+from models.checkout.checkout_login_user import CheckoutLoginUser as CheckoutLoginUserModel
 
 
 from rest_framework_mongoengine.fields import ReferenceField
@@ -79,3 +80,10 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ('id', 'first_name', 'last_name', 'date_of_birth', 'primary_email', 'primary_contact_number')
+
+
+class CheckoutLoginUserModelSerializer(DocumentSerializer):
+
+    class Meta:
+        model = CheckoutLoginUserModel
+        fields = ('id', 'payload', 'status', 'token', 'expiration_time', 'created_at')

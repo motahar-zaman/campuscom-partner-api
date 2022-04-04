@@ -228,6 +228,9 @@ def translate_data(data, mapping):
         for key, value in mapping.items():
             if key == 'name':
                 name = item.get('first_name', '') + ' ' + item.get('middle_name', '') + ' ' + item.get('last_name', '')
+                ################################
+                if name.isspace():
+                    name = item.get('name', '')
                 item_data[key] = name.replace('  ', ' ')  # replace two consecutive spaces with one
             elif key == 'section_type':
                 item_data[key] = item.get('meeting_cde', 'LEC')

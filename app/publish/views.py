@@ -3,8 +3,10 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from shared_models.models import Profile, CourseSharingContract
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
+from models.checkout.checkout_login_user import CheckoutLoginUser as CheckoutLoginUserModel
 
 from publish.serializers import ProfileSerializer
+from publish.serializers import CheckoutLoginUserModelSerializer
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -31,6 +33,7 @@ from .helpers import (
 )
 import json
 from bson.json_util import dumps
+from hashlib import md5
 
 from publish.serializers import CourseSerializer, SectionSerializer, PublishJobModelSerializer, PublishLogModelSerializer
 from campuslibs.loggers.mongo import save_to_mongo
@@ -175,5 +178,26 @@ def student(request, **kwargs):
 
     return Response({'data': 'Invalid action or type'}, status=HTTP_200_OK)
 
+
 def health_check(request):
     return HttpResponse(status=HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([HasCourseProviderAPIKey])
+def checkout_info(request):
+    payload = request.data.copy()
+    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time':10})
+    if login_user_serializer.is_valid():
+        login_user = login_user_serializer.save()
+    else:
+        return Response({'message': login_user_serializer.errors}, status=HTTP_400_BAD_REQUEST)
+
+    token = md5(str(login_user.id).encode()).hexdigest()
+    login_user.token = token
+    login_user.status = 'token created'
+    login_user.save()
+
+    return Response({'token': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+
+

@@ -239,7 +239,7 @@ def translate_data(data, mapping):
             elif key == 'end_at':
                 item_data[key] = item.get('end_dte', '') + 'T' + item.get('end_tim', '')
             elif key == 'instructors':
-                item_data[key] = []  # translate_data(item['instructors'], value)
+                item_data[key] = translate_data(item['instructors'], value)
             elif key == 'schedules':
                 item_data[key] = translate_data(item.get('schedules', []), value)
 

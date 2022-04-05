@@ -185,4 +185,5 @@ def checkout_info(request):
     login_user.status = 'token created'
     login_user.save()
 
-    return Response({'token': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+    return Response({'tid': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+

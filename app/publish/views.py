@@ -1,13 +1,10 @@
 from rest_framework.response import Response
-from django.shortcuts import get_object_or_404
-from bson import ObjectId
-import mongoengine
-
-from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
+from django.http import HttpResponse
+from shared_models.models import Profile, CourseSharingContract
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
-from models.courseprovider.provider_site import CourseProviderSite as CourseProviderSiteModel
-from models.courseprovider.instructor import Instructor as InstructorModel
-from datetime import datetime
+
+from publish.serializers import ProfileSerializer
+from publish.serializers import CheckoutLoginUserModelSerializer
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -17,28 +14,13 @@ from rest_framework.status import (
 
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
-from django_scopes import scopes_disabled
 
-from .helpers import (
-    get_datetime_obj,
-    upsert_mongo_doc,
-    prepare_course_postgres,
-    prepare_course_mongo,
-    get_execution_site,
-    get_instructors,
-    get_schedules,
-    prepare_section_mongo,
-    transale_j1_data,
-    get_data,
-    j1_publish
-)
-import json
-from bson.json_util import dumps
+from .helpers import transale_j1_data, j1_publish
+from hashlib import md5
 
-from publish.serializers import CourseSerializer, SectionSerializer, PublishJobModelSerializer, PublishLogModelSerializer
+from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
 from campuslibs.loggers.mongo import save_to_mongo
 from .tasks import generic_task_enqueue
-from models.publish.publish_job import PublishJob as PublishJobModel
 from models.log.publish_log import PublishLog as PublishLogModel
 
 @api_view(['POST'])
@@ -72,6 +54,11 @@ def publish(request):
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
+        # the case of j1: their payload has a key entity_action. depending on it's value, stuff will happen.
+        # but for others, this key may not be present.
+        if payload.get('entity_action', '').strip().lower() == 'd':
+            return Response({'message': 'action performed successfully'}, status=HTTP_200_OK)
+
         request_data = transale_j1_data(request_data)
         j1_publish(request, request_data, contracts, course_provider_model)
 
@@ -128,3 +115,74 @@ def job_status(request, **kwargs):
     }
     return Response({'data': formatted_data}, status=HTTP_200_OK)
 
+
+@api_view(['POST'])
+@permission_classes([HasCourseProviderAPIKey])
+def student(request, **kwargs):
+    status = ''
+    message = ''
+    try:
+        action = request.data['action']
+    except KeyError:
+        return Response({'data': 'action not specified'})
+
+    try:
+        data_type = request.data['type']
+    except KeyError:
+        return Response({'data': 'type not specified'})
+
+    if action == 'record' and data_type == 'student':
+        try:
+            primary_email = request.data['data']['primary_email']
+        except KeyError:
+            return Response({'data': 'primary_key must be provide'})
+
+        try:
+            profile = Profile.objects.get(primary_email=primary_email)
+        except Profile.DoesNotExist:
+            status = 'created'
+            message = 'new profile created successfully'
+            serializer = ProfileSerializer(data=request.data['data'])
+        else:
+            status = 'updated'
+            message = 'profile updated successfully'
+            serializer = ProfileSerializer(profile, data=request.data['data'])
+
+        if serializer.is_valid():
+            serializer.save()
+            data = request.data
+            data['data'] = serializer.data
+            data['status'] = status
+            data['message'] = message
+
+        else:
+            data = request.data
+            data['errors'] = serializer.errors
+            data['status'] = 'failed'
+            data['message'] = 'error occured'
+
+        return Response(data, status=HTTP_200_OK)
+
+    return Response({'data': 'Invalid action or type'}, status=HTTP_200_OK)
+
+
+def health_check(request):
+    return HttpResponse(status=HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([HasCourseProviderAPIKey])
+def checkout_info(request):
+    payload = request.data.copy()
+    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time':10})
+    if login_user_serializer.is_valid():
+        login_user = login_user_serializer.save()
+    else:
+        return Response({'message': login_user_serializer.errors}, status=HTTP_400_BAD_REQUEST)
+
+    token = md5(str(login_user.id).encode()).hexdigest()
+    login_user.token = token
+    login_user.status = 'token created'
+    login_user.save()
+
+    return Response({'token': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)

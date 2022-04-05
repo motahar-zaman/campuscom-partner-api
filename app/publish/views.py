@@ -1,9 +1,7 @@
 from rest_framework.response import Response
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from shared_models.models import Profile, CourseSharingContract
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
-from models.checkout.checkout_login_user import CheckoutLoginUser as CheckoutLoginUserModel
 
 from publish.serializers import ProfileSerializer
 from publish.serializers import CheckoutLoginUserModelSerializer
@@ -16,29 +14,13 @@ from rest_framework.status import (
 
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
-from django_scopes import scopes_disabled
 
-from .helpers import (
-    get_datetime_obj,
-    upsert_mongo_doc,
-    prepare_course_postgres,
-    prepare_course_mongo,
-    get_execution_site,
-    get_instructors,
-    get_schedules,
-    prepare_section_mongo,
-    transale_j1_data,
-    get_data,
-    j1_publish
-)
-import json
-from bson.json_util import dumps
+from .helpers import transale_j1_data, j1_publish
 from hashlib import md5
 
-from publish.serializers import CourseSerializer, SectionSerializer, PublishJobModelSerializer, PublishLogModelSerializer
+from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
 from campuslibs.loggers.mongo import save_to_mongo
 from .tasks import generic_task_enqueue
-from models.publish.publish_job import PublishJob as PublishJobModel
 from models.log.publish_log import PublishLog as PublishLogModel
 
 @api_view(['POST'])
@@ -72,6 +54,11 @@ def publish(request):
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
+        # the case of j1: their payload has a key entity_action. depending on it's value, stuff will happen.
+        # but for others, this key may not be present.
+        if payload.get('entity_action', '').strip().lower() == 'd':
+            return Response({'message': 'action performed successfully'}, status=HTTP_200_OK)
+
         request_data = transale_j1_data(request_data)
         j1_publish(request, request_data, contracts, course_provider_model)
 
@@ -199,5 +186,3 @@ def checkout_info(request):
     login_user.save()
 
     return Response({'token': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
-
-

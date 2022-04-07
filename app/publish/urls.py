@@ -7,6 +7,7 @@ from publish.views import job_status
 from publish.views import student
 from publish.views import health_check
 from publish.views import checkout_info
+from publish.views import notification_details
 
 # router = routers.DefaultRouter()
 
@@ -20,4 +21,5 @@ urlpatterns = [
     path('student/', student),
     path('check/', health_check),
     path('checkout-info/', checkout_info),
+    path('notification/<notification_id>', notification_details),
 ]

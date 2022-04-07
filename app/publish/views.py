@@ -1,9 +1,9 @@
 from rest_framework.response import Response
 from django.http import HttpResponse
-from shared_models.models import Profile, CourseSharingContract
+from shared_models.models import Profile, CourseSharingContract, Notification, Cart, Payment, CourseEnrollment
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 
-from publish.serializers import ProfileSerializer
+from publish.serializers import ProfileSerializer, PaymentSerializer
 from publish.serializers import CheckoutLoginUserModelSerializer
 
 from rest_framework.status import (
@@ -22,6 +22,7 @@ from publish.serializers import PublishJobModelSerializer, PublishLogModelSerial
 from campuslibs.loggers.mongo import save_to_mongo
 from .tasks import generic_task_enqueue
 from models.log.publish_log import PublishLog as PublishLogModel
+from django_scopes import scopes_disabled
 
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
@@ -186,4 +187,47 @@ def checkout_info(request):
     login_user.save()
 
     return Response({'tid': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+
+
+@api_view(['POST'])
+# @permission_classes([HasCourseProviderAPIKey])
+def notification_details(request, **kwargs):
+    notification_id = kwargs['notification_id']
+
+    try:
+        notification = Notification.objects.get(pk=notification_id)
+    except Notification.DoesNotExist:
+        return Response({'message': 'Notification not found'})
+    else:
+        type = notification.data['type']
+        id = notification.data['id']
+        data = {}
+
+        with scopes_disabled():
+            if type == 'order':
+                try:
+                    cart = Cart.objects.get(pk=id)
+                except Cart.DoesNotExist:
+                    return Response({'data': data, 'message': "No details available for this order"}, status=HTTP_200_OK)
+                else:
+                    data['order_id'] = id
+
+            elif type == 'payment':
+                try:
+                    payment = Payment.objects.get(pk=id)
+                except Cart.DoesNotExist:
+                    return Response({'data': data, 'message': "No details available for this payment"}, status=HTTP_200_OK)
+                else:
+                    serializer = PaymentSerializer(payment)
+                    data = serializer.data
+
+            elif type == 'enrollment':
+                try:
+                    enrollment = CourseEnrollment.objects.get(pk=id)
+                except Cart.DoesNotExist:
+                    return Response({'data': data, 'message': "No details available for this enrollment"}, status=HTTP_200_OK)
+                else:
+                    data['enrollment_id'] = id
+
+    return Response({'data': data, 'message': "successful"}, status=HTTP_200_OK)
 

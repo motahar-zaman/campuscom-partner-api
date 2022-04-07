@@ -10,6 +10,11 @@ from publish.serializers import CourseSerializer, SectionSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
 from django_scopes import scopes_disabled
+from django.db import transaction
+
+import requests
+from models.course.course import Course as CourseModel
+from decouple import config
 
 
 def get_schedules(data):
@@ -203,6 +208,9 @@ def get_execution_site(data, course_provider_model):
 
 
 def prepare_section_postgres(data, course, course_model):
+    content_db_reference = ''
+    if course_model:
+        content_db_reference = str(course_model.id)
     section_data = {
         'course': course.id,
         'name': data.get('code'),
@@ -211,7 +219,7 @@ def prepare_section_postgres(data, course, course_model):
         'available_seat': data.get('num_seats'),
         'execution_mode': data.get('execution_mode', 'self-paced'),
         'registration_deadline': get_datetime_obj(data.get('registration_deadline')),
-        'content_db_reference': str(course_model.id),
+        'content_db_reference': content_db_reference,
         'is_active': data.get('is_active', False),
         'start_date': get_datetime_obj(data.get('start_date')),
         'end_date': get_datetime_obj(data.get('end_date')),
@@ -341,8 +349,12 @@ def j1_publish(request, request_data, contracts, course_provider_model):
 
         if course_serializer.is_valid(raise_exception=True):
             course = course_serializer.save()
+            course.active_status = True
+            course.save()
 
         course_model = CourseModel.objects.get(id=course.content_db_reference)
+        course_model._is_published = False
+        course_model.save()
 
         # create StoreCourse
         for contract in contracts:
@@ -363,6 +375,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
 
                 if serializer.is_valid(raise_exception=True):
                     section = serializer.save()
+                    section.active_status = True
+                    section.save()
 
                 try:
                     store_course_section = StoreCourseSection.objects.get(store_course=store_course, section=section)
@@ -397,3 +411,110 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.save()
 
     return True
+
+def es_course_unpublish(store_course):
+    '''
+    checks the stores key in the course object and removes the store id of the store from which the course is being unpublished.
+    if the store id is the sole item, then the whole key is removed
+    '''
+    baseURL = config('ES_BASE_URL')
+    method = 'GET'
+    db_ref = store_course.course.content_db_reference
+    url = f'{baseURL}/course/_doc/{db_ref}?routing={db_ref}'
+    resp = requests.get(url)
+    course = resp.json()
+
+    if course['found']:
+        try:
+            stores = course['_source']['stores']
+        except KeyError:
+            pass
+        else:
+            if store_course.store.url_slug in stores:
+                stores.remove(store_course.store.url_slug)
+
+                if len(stores) == 0:
+                    method = 'DELETE'
+                    resp = requests.request(method, url)
+                else:
+                    url = url.replace('_doc', '_update')
+                    payload = {
+                        'doc': {
+                            "stores": stores
+                        }
+                    }
+
+                    method = 'POST'
+                    resp = requests.request(method, url, json=payload)
+
+def delete_course_action(request, request_data, contracts, course_provider_model):
+    # 1. Get the course
+    course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
+    course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
+    with scopes_disabled():
+        try:
+            course = Course.objects.get(slug=course_data['slug'], course_provider=request.course_provider)
+        except Course.DoesNotExist:
+            return (False, f"course with slug {course_data['slug']} does not exist")
+
+        try:
+            course_model = CourseModel.objects.get(id=course.content_db_reference)
+        except CourseModel.DoesNotExist:
+            pass
+
+    # 2. Get the sections
+    section_names = []
+    for section_data in request_data.get('sections', []):
+        section_data = prepare_section_postgres(section_data, course, course_model)
+        section_names.append(section_data['name'])
+
+    with scopes_disabled():
+        # if no section is provided, then consider the whole course for deletion/deactivation e.g. all the sections
+        if section_names:
+            sections = course.sections.filter(name__in=section_names)
+        else:
+            sections = course.sections.all()
+
+    # 3. Get store courses
+    with scopes_disabled():
+        store_courses = StoreCourse.objects.filter(course=course, store__in=[contract.store for contract in contracts])
+
+    # 4. Get store course sections
+    with scopes_disabled():
+        store_course_sections = StoreCourseSection.objects.filter(store_course__in=store_courses, section__in=sections)
+
+    #########################################################################################
+    # If all the sections of a course are not to be deleted, then the course is not touched.
+    # otherwise, the course is deactivated after deactivating all the sections.
+    # this works when no section is provide and we consider the whole course (e.g. all the section) for deactivation
+    # but will fail when all the sections are provide.
+    # in that case, we must manually check if the course has any section left active after the deactivation
+    # operation and if there's none, deactivate the course only then
+
+    # 1. Deactivate the Store Course Sections
+    with transaction.atomic():
+        with scopes_disabled():
+            store_course_sections.update(active_status=False)
+
+            # 2. Deactivate the Products associated with the store course_sections here
+            Product.objects.filter(
+                id__in=[scs.product.id for scs in store_course_sections]
+
+            ).update(active_status=False)
+
+            # 3. Now the Section
+            sections.update(active_status=False)
+
+            # 4. Now the Course if it has no active section
+            if course.sections.filter(active_status=True).count() == 0:
+                course.active_status = False
+                course.save()
+
+                # if the course is deactivated, deactivate the store_courses too
+                store_courses.update(active_status=False)
+
+    # once the store_course is deactivated, these must be then removed from ES too
+    for store_course in store_courses:
+        es_course_unpublish(store_course)
+
+    return (True, 'action performed successfully')

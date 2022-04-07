@@ -15,7 +15,7 @@ from rest_framework.status import (
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
-from .helpers import transale_j1_data, j1_publish
+from .helpers import transale_j1_data, j1_publish, delete_course_action
 from hashlib import md5
 
 from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
@@ -56,10 +56,11 @@ def publish(request):
     if action == 'j1-course':
         # the case of j1: their payload has a key entity_action. depending on it's value, stuff will happen.
         # but for others, this key may not be present.
-        if payload.get('entity_action', '').strip().lower() == 'd':
-            return Response({'message': 'action performed successfully'}, status=HTTP_200_OK)
-
         request_data = transale_j1_data(request_data)
+        if payload.get('entity_action', '').strip().lower() == 'd':
+            status, message = delete_course_action(request, request_data, contracts, course_provider_model)
+            return Response({'message': message}, status=HTTP_200_OK)
+
         j1_publish(request, request_data, contracts, course_provider_model)
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)

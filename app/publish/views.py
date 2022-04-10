@@ -3,8 +3,8 @@ from django.http import HttpResponse
 from shared_models.models import Profile, CourseSharingContract, Notification, Cart, Payment, CourseEnrollment
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 
-from publish.serializers import ProfileSerializer, PaymentSerializer
-from publish.serializers import CheckoutLoginUserModelSerializer
+from publish.serializers import ProfileSerializer, PaymentSerializer, CheckoutLoginUserModelSerializer,\
+    NotificationSerializer
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -23,6 +23,7 @@ from campuslibs.loggers.mongo import save_to_mongo
 from .tasks import generic_task_enqueue
 from models.log.publish_log import PublishLog as PublishLogModel
 from django_scopes import scopes_disabled
+from datetime import datetime
 
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
@@ -190,7 +191,7 @@ def checkout_info(request):
 
 
 @api_view(['POST'])
-# @permission_classes([HasCourseProviderAPIKey])
+@permission_classes([HasCourseProviderAPIKey])
 def notification_details(request, **kwargs):
     notification_id = kwargs['notification_id']
     data = {}
@@ -232,4 +233,58 @@ def notification_details(request, **kwargs):
                     data['details'] = format_notification_response(enrollment.cart_item.cart, course_enrollment = enrollment)
 
     return Response(data, status=HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([HasCourseProviderAPIKey])
+def get_notifications(request, **kwargs):
+    from_date = request.GET.get('from_date', None)
+    to_date = request.GET.get('to_date', None)
+    status = request.GET.get('status', None)
+
+    if from_date and to_date:
+        from_date = datetime.strptime(from_date, '%Y-%m-%d')
+        to_date = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+        try:
+            notification = Notification.objects.filter(creation_time__range=(from_date, to_date))
+            if status:
+                notification = notification.filter(status=status)
+        except Notification.DoesNotExist:
+            return Response({'message': 'Notification not found'})
+        else:
+            notification_serializer = NotificationSerializer(notification, many=True)
+
+    elif status:
+        try:
+            notification = Notification.objects.filter(status=status)
+        except Notification.DoesNotExist:
+            return Response({'message': 'Notification not found'})
+        else:
+            notification_serializer = NotificationSerializer(notification, many=True)
+
+    else:
+        return Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
+
+    notification_data = notification_serializer.data
+    successful = 0
+    failed = 0
+    pending = 0
+    for data in notification_data:
+        if data['status'] == 'failed':
+            failed += 1
+        elif data['status'] == 'successful':
+            successful += 1
+        else:
+            pending += 1
+
+    response = {
+        'total': successful + failed + pending,
+        'successful': successful,
+        'failed': failed,
+        'pending': pending,
+        'data': notification_data
+    }
+
+
+    return Response(response, status=HTTP_200_OK)
 

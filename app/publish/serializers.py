@@ -33,7 +33,6 @@ class CourseSerializer(serializers.ModelSerializer):
             'id',
             'course_provider',
             'title',
-            'content_ready',
             'slug',
             'content_db_reference',
             'course_image_uri',

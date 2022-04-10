@@ -189,7 +189,6 @@ def prepare_course_postgres(data, course_provider, course_provider_model):
         'title': data.get('title'),
         'slug': data.get('slug'),
         'course_image_uri': data.get('course_image_uri', None),
-        'content_ready': data.get('content_ready', False),
         'external_image_url': data.get('external_image_url', None),
     }
     return course_data
@@ -346,7 +345,6 @@ def j1_publish(request, request_data, contracts, course_provider_model):
             course_serializer = CourseSerializer(data=course_data)
         else:
             course_serializer = CourseSerializer(course, data=course_data)
-
         if course_serializer.is_valid(raise_exception=True):
             course = course_serializer.save()
             course.active_status = True
@@ -407,7 +405,6 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.tax_code = 'ST080031'
                     product.fee = section.fee
                     product.minimum_fee = section.fee
-
                     product.save()
 
     return True

@@ -21,5 +21,5 @@ urlpatterns = [
     path('student/', student),
     path('check/', health_check),
     path('checkout-info/', checkout_info),
-    path('notification/<notification_id>', notification_details),
+    path('notification-details/<notification_id>', notification_details),
 ]

@@ -15,7 +15,7 @@ from rest_framework.status import (
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
-from .helpers import transale_j1_data, j1_publish
+from .helpers import transale_j1_data, j1_publish, format_notification_response
 from hashlib import md5
 
 from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
@@ -193,6 +193,7 @@ def checkout_info(request):
 # @permission_classes([HasCourseProviderAPIKey])
 def notification_details(request, **kwargs):
     notification_id = kwargs['notification_id']
+    data = {}
 
     try:
         notification = Notification.objects.get(pk=notification_id)
@@ -201,7 +202,8 @@ def notification_details(request, **kwargs):
     else:
         type = notification.data['type']
         id = notification.data['id']
-        data = {}
+        data['status'] = notification.status
+        data['time'] = notification.creation_time.strftime("%m/%d/%Y, %H:%M:%S")
 
         with scopes_disabled():
             if type == 'order':
@@ -210,7 +212,7 @@ def notification_details(request, **kwargs):
                 except Cart.DoesNotExist:
                     return Response({'data': data, 'message': "No details available for this order"}, status=HTTP_200_OK)
                 else:
-                    data['order_id'] = id
+                    data['details'] = format_notification_response(cart)
 
             elif type == 'payment':
                 try:
@@ -219,15 +221,15 @@ def notification_details(request, **kwargs):
                     return Response({'data': data, 'message': "No details available for this payment"}, status=HTTP_200_OK)
                 else:
                     serializer = PaymentSerializer(payment)
-                    data = serializer.data
+                    data['details'] = serializer.data
 
             elif type == 'enrollment':
                 try:
                     enrollment = CourseEnrollment.objects.get(pk=id)
-                except Cart.DoesNotExist:
+                except CourseEnrollment.DoesNotExist:
                     return Response({'data': data, 'message': "No details available for this enrollment"}, status=HTTP_200_OK)
                 else:
-                    data['enrollment_id'] = id
+                    data['details'] = format_notification_response(enrollment.cart_item.cart, course_enrollment = enrollment)
 
-    return Response({'data': data, 'message': "successful"}, status=HTTP_200_OK)
+    return Response(data, status=HTTP_200_OK)
 

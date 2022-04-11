@@ -362,6 +362,11 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                 defaults={'enrollment_ready': True, 'is_published': False, 'is_featured': False}
             )
 
+            # set the active_status true
+            if not created:
+                store_course.active_status = True
+                store_course.save()
+
             for section_data in request_data.get('sections', []):
                 section_data = prepare_section_postgres(section_data, course, course_model)
                 try:
@@ -390,12 +395,16 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         minimum_fee=section.fee
                     )
 
-                    StoreCourseSection.objects.get_or_create(
+                    store_course_section, created = StoreCourseSection.objects.get_or_create(
                         store_course=store_course,
                         section=section,
                         is_published=False,
                         product=product
                     )
+
+                    if not created:
+                        store_course_section.active_status = True
+                        store_course_section.save()
                 else:
                     product = store_course_section.product
                     product.store = contract.store
@@ -405,6 +414,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.tax_code = 'ST080031'
                     product.fee = section.fee
                     product.minimum_fee = section.fee
+                    product.active_status = True
                     product.save()
 
     return True

@@ -510,11 +510,13 @@ def deactivate_course(request, request_data, contracts, course_provider_model):
             ).update(active_status=False)
 
             # 3. Now the Section
-            sections
+            sections.update(active_status=False)
 
             # 4. Now the Course if it has no active section
             if course.sections.filter(active_status=True).count() == 0:
-                course.update(active_status=False, content_ready=False)
+                course.active_status = False
+                course.content_ready = False
+                course.save()
                 # if the course is deactivated, deactivate the store_courses too
                 store_courses.update(active_status=False, enrollment_ready=False)
 

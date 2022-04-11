@@ -15,7 +15,7 @@ from rest_framework.status import (
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
-from .helpers import transale_j1_data, j1_publish, delete_course_action
+from .helpers import transale_j1_data, j1_publish, deactivate_course
 from hashlib import md5
 
 from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
@@ -58,7 +58,7 @@ def publish(request):
         # but for others, this key may not be present.
         request_data = transale_j1_data(request_data)
         if payload.get('entity_action', '').strip().lower() == 'd':
-            status, message = delete_course_action(request, request_data, contracts, course_provider_model)
+            status, message = deactivate_course(request, request_data, contracts, course_provider_model)
             return Response({'message': message}, status=HTTP_200_OK)
 
         j1_publish(request, request_data, contracts, course_provider_model)

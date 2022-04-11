@@ -365,6 +365,9 @@ def j1_publish(request, request_data, contracts, course_provider_model):
             # set the active_status true
             if not created:
                 store_course.active_status = True
+                store_course.enrollment_ready = True
+                store_course.is_published = False
+                store_course.is_featured = False
                 store_course.save()
 
             for section_data in request_data.get('sections', []):

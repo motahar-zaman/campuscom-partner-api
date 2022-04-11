@@ -444,9 +444,9 @@ def es_course_unpublish(store_course):
                     method = 'POST'
                     resp = requests.request(method, url, json=payload)
 
-def delete_course_action(request, request_data, contracts, course_provider_model):
+def deactivate_course(request, request_data, contracts, course_provider_model):
     # 1. Get the course
-    course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
+    # course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
     with scopes_disabled():
         try:
@@ -500,15 +500,13 @@ def delete_course_action(request, request_data, contracts, course_provider_model
             ).update(active_status=False)
 
             # 3. Now the Section
-            sections.update(active_status=False)
+            sections
 
             # 4. Now the Course if it has no active section
             if course.sections.filter(active_status=True).count() == 0:
-                course.active_status = False
-                course.save()
-
+                course.update(active_status=False, content_ready=False)
                 # if the course is deactivated, deactivate the store_courses too
-                store_courses.update(active_status=False)
+                store_courses.update(active_status=False, enrollment_ready=False)
 
     # once the store_course is deactivated, these must be then removed from ES too
     for store_course in store_courses:

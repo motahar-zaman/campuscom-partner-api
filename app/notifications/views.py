@@ -32,12 +32,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         notification = self.get_object()
-        data = {}
-
-        # type = notification.data['type']
-        # id = notification.data['id']
-        data['status'] = notification.status
-        data['time'] = notification.creation_time.strftime("%m/%d/%Y, %H:%M:%S")
+        data = {'status': notification.status, 'time': notification.creation_time.strftime("%m/%d/%Y, %H:%M:%S")}
 
         with scopes_disabled():
             if notification.data['type'] == 'order':
@@ -71,43 +66,29 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             from_date = datetime.strptime(from_date, '%Y-%m-%d')
             to_date = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
             try:
-                notification = Notification.objects.filter(creation_time__range=(from_date, to_date))
+                notifications = Notification.objects.filter(creation_time__range=(from_date, to_date))
                 if status:
-                    notification = notification.filter(status=status)
+                    notifications = notifications.filter(status=status)
             except Notification.DoesNotExist:
                 return Response({'message': 'Notification not found'})
-            else:
-                notification_serializer = NotificationSerializer(notification, many=True)
 
         elif status:
             try:
-                notification = Notification.objects.filter(status=status)
+                notifications = Notification.objects.filter(status=status)
             except Notification.DoesNotExist:
                 return Response({'message': 'Notification not found'})
-            else:
-                notification_serializer = NotificationSerializer(notification, many=True)
 
         else:
             return Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
 
-        notification_data = notification_serializer.data
-        successful = 0
-        failed = 0
-        pending = 0
-        for data in notification_data:
-            if data['status'] == 'failed':
-                failed += 1
-            elif data['status'] == 'successful':
-                successful += 1
-            else:
-                pending += 1
+        notification_serializer = NotificationSerializer(notifications, many=True)
 
         response = {
-            'total': successful + failed + pending,
-            'successful': successful,
-            'failed': failed,
-            'pending': pending,
-            'data': notification_data
+            'total': notifications.count(),
+            'successful': notifications.filter(status='successful').count(),
+            'failed': notifications.filter(status='failed').count(),
+            'pending': notifications.filter(status='pending').count(),
+            'data': notification_serializer.data
         }
 
         return Response(response, status=HTTP_200_OK)

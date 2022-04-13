@@ -534,6 +534,7 @@ def format_course_enrollment_data(course_enrollment, payment, profile):
     }
     return data
 
+
 def es_course_unpublish(store_course):
     '''
     checks the stores key in the course object and removes the store id of the store from which the course is being unpublished.
@@ -568,6 +569,7 @@ def es_course_unpublish(store_course):
 
                     method = 'POST'
                     resp = requests.request(method, url, json=payload)
+
 
 def deactivate_course(request, request_data, contracts, course_provider_model):
     # 1. Get the course

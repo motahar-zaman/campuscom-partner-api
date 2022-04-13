@@ -15,8 +15,7 @@ from rest_framework.status import (
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
-from .helpers import transale_j1_data, j1_publish, format_notification_response
-from .helpers import transale_j1_data, j1_publish, deactivate_course
+from .helpers import transale_j1_data, j1_publish, format_notification_response, deactivate_course
 
 from hashlib import md5
 

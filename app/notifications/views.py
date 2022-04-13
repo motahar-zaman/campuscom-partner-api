@@ -13,7 +13,7 @@ from rest_framework.status import (
 
 
 # Create your views here.
-# @permission_classes([HasCourseProviderAPIKey])
+@permission_classes([HasCourseProviderAPIKey])
 class NotificationsViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'head',]
     model = Notification

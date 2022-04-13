@@ -441,11 +441,18 @@ def format_notification_response(cart, course_enrollment = None):
 
 def format_course_enrollment_data(course_enrollment, payment, profile):
     data = {}
-    course_details = None
+
+    # getting section external_id from mongo section data
+    external_id = None
     try:
-        course_details = CourseModel.objects.get(pk=course_enrollment.course.content_db_reference) #mongo course data
+        course_model = CourseModel.objects.get(pk=course_enrollment.course.content_db_reference) #mongo course data
     except CourseModel.DoesNotExist:
         pass
+    else:
+        for section_model in course_model.sections:
+            if section_model.code == course_enrollment.section.name:
+                external_id = section_model.external_id
+                break
 
     # getting registration info
     registration_details = {}
@@ -490,7 +497,7 @@ def format_course_enrollment_data(course_enrollment, payment, profile):
             continue
         profile_details[question.external_id] = val
 
-    data['external_id'] = course_details.external_id if course_details else None
+    data['external_id'] = external_id
     data['enrollment_id'] = course_enrollment.ref_id
     data['product_type'] = 'section'
     data['registration_details'] = registration_details

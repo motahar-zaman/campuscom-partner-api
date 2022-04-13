@@ -6,6 +6,7 @@ from .helpers import format_notification_response
 from rest_framework import viewsets
 from datetime import datetime
 from django_scopes import scopes_disabled
+from rest_framework.decorators import permission_classes
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -33,40 +34,31 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         notification = self.get_object()
         data = {}
 
-        type = notification.data['type']
-        id = notification.data['id']
+        # type = notification.data['type']
+        # id = notification.data['id']
         data['status'] = notification.status
         data['time'] = notification.creation_time.strftime("%m/%d/%Y, %H:%M:%S")
 
         with scopes_disabled():
-            if type == 'order':
+            if notification.data['type'] == 'order':
                 try:
-                    cart = Cart.objects.get(pk=id)
+                    cart = Cart.objects.get(pk=notification.data['id'])
                 except Cart.DoesNotExist:
                     return Response({'data': data, 'message': "No details available for this order"},
                                     status=HTTP_200_OK)
                 else:
                     data['details'] = format_notification_response(cart)
 
-            elif type == 'payment':
+            elif notification.data['type'] == 'payment':
                 try:
-                    payment = Payment.objects.get(pk=id)
-                except Cart.DoesNotExist:
+                    payment = Payment.objects.get(pk=notification.data['id'])
+                except Payment.DoesNotExist:
                     return Response({'data': data, 'message': "No details available for this payment"},
                                     status=HTTP_200_OK)
                 else:
                     serializer = PaymentSerializer(payment)
                     data['details'] = serializer.data
 
-            elif type == 'enrollment':
-                try:
-                    enrollment = CourseEnrollment.objects.get(pk=id)
-                except CourseEnrollment.DoesNotExist:
-                    return Response({'data': data, 'message': "No details available for this enrollment"},
-                                    status=HTTP_200_OK)
-                else:
-                    data['details'] = format_notification_response(enrollment.cart_item.cart,
-                                                                   course_enrollment=enrollment)
         return Response(data, status=HTTP_200_OK)
 
 

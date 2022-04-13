@@ -22,6 +22,6 @@ urlpatterns = [
     path('student/', student),
     path('check/', health_check),
     path('checkout-info/', checkout_info),
-    path('notification/', get_notifications),
+    path('notifications/', get_notifications),
     path('notification-details/<notification_id>', notification_details),
 ]

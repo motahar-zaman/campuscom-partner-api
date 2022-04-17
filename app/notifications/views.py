@@ -63,14 +63,10 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         to_date = request.GET.get('to_date', None)
         status = request.GET.get('status', None)
 
-        try:
+        if from_date:
             query_params.pop('from_date')
-        except KeyError:
-            pass
-        try:
+        if to_date:
             query_params.pop('to_date')
-        except KeyError:
-            pass
 
         if from_date and to_date:
             query_params.appendlist('creation_time__range', [from_date, to_date])

@@ -58,28 +58,31 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
 
     def list(self, request, *args, **kwargs):
+        query_params = request.GET.copy()
         from_date = request.GET.get('from_date', None)
         to_date = request.GET.get('to_date', None)
         status = request.GET.get('status', None)
 
+        try:
+            query_params.pop('from_date')
+        except KeyError:
+            pass
+        try:
+            query_params.pop('to_date')
+        except KeyError:
+            pass
+
         if from_date and to_date:
-            from_date = datetime.strptime(from_date, '%Y-%m-%d')
-            to_date = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            try:
-                notifications = Notification.objects.filter(creation_time__range=(from_date, to_date))
-                if status:
-                    notifications = notifications.filter(status=status)
-            except Notification.DoesNotExist:
-                return Response({'message': 'Notification not found'})
-
+            query_params.appendlist('creation_time__range', [from_date, to_date])
         elif status:
-            try:
-                notifications = Notification.objects.filter(status=status)
-            except Notification.DoesNotExist:
-                return Response({'message': 'Notification not found'})
-
+            pass
         else:
             return Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
+
+        try:
+            notifications = Notification.objects.filter(**query_params.dict())
+        except Notification.DoesNotExist:
+            return Response({'message': 'No notification found'}, status=HTTP_200_OK)
 
         notification_serializer = NotificationSerializer(notifications, many=True)
 

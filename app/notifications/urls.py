@@ -1,9 +1,8 @@
 from django.urls import path, include
-from rest_framework import routers
+from rest_framework.routers import DefaultRouter
 from notifications.views import NotificationsViewSet
 
-
-router = routers.DefaultRouter()
+router = DefaultRouter(trailing_slash=False)
 
 router.register(r'', NotificationsViewSet, 'get_notifications')
 

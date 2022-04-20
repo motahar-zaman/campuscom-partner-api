@@ -8,7 +8,8 @@ from json import JSONEncoder
 from bson.objectid import ObjectId
 from publish.serializers import CourseSerializer, SectionSerializer
 from models.course.course import Course as CourseModel
-from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection
+from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection,\
+    Payment, QuestionBank, CourseEnrollment, StudentProfile
 from django_scopes import scopes_disabled
 from django.db import transaction
 
@@ -422,6 +423,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
 
     return True
 
+
 def es_course_unpublish(store_course):
     '''
     checks the stores key in the course object and removes the store id of the store from which the course is being unpublished.
@@ -456,6 +458,7 @@ def es_course_unpublish(store_course):
 
                     method = 'POST'
                     resp = requests.request(method, url, json=payload)
+
 
 def deactivate_course(request, request_data, contracts, course_provider_model):
     # 1. Get the course
@@ -528,3 +531,4 @@ def deactivate_course(request, request_data, contracts, course_provider_model):
         es_course_unpublish(store_course)
 
     return (True, 'action performed successfully')
+

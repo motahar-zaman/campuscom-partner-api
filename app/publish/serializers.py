@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_mongoengine.serializers import DocumentSerializer, EmbeddedDocumentSerializer
 
-from shared_models.models import Course, Section, Product, Profile
+from shared_models.models import Course, Section, Product, Profile, Payment, Notification
 from models.course.section import Section as SectionModel
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 from models.course.course import Course as CourseModel
@@ -81,7 +81,6 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class CheckoutLoginUserModelSerializer(DocumentSerializer):
-
     class Meta:
         model = CheckoutLoginUserModel
         fields = ('id', 'payload', 'status', 'token', 'expiration_time', 'created_at')

@@ -1,6 +1,7 @@
 from notifications.serializers import PaymentSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile
+from django.core.exceptions import ValidationError
 
 
 def format_notification_response(cart, course_enrollment = None):

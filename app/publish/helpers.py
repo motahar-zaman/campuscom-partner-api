@@ -6,7 +6,7 @@ from datetime import datetime
 
 from json import JSONEncoder
 from bson.objectid import ObjectId
-from publish.serializers import CourseSerializer, SectionSerializer
+from publish.serializers import CourseSerializer, SectionSerializer, InstructorModelSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection,\
     Payment, QuestionBank, CourseEnrollment, StudentProfile
@@ -46,10 +46,13 @@ def get_instructors(data, course_provider_model):
             'external_id': item.get('external_id', ''),
             'profile_urls': item.get('profile_urls', {}),
             'image': item.get('image', {}),
-            'short_bio': item.get('short_bio', ''),
-            'detail_bio': item.get('detail_bio', ''),
+            'short_bio': item.get('short_bio', None),
+            'detail_bio': item.get('detail_bio', None),
         }
-        instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=data))
+
+        instructor_model_serializer = InstructorModelSerializer(data=data)
+        if instructor_model_serializer.is_valid():
+            instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=data))
     return instructors
 
 
@@ -256,6 +259,18 @@ def translate_data(data, mapping):
 
             elif key == 'is_active':
                 item_data[key] = item.get(value, False)
+
+            elif key == 'profile_urls':
+                item_data[key] = item.get(value, {})
+
+            elif key == 'image':
+                item_data[key] = item.get(value, {})
+
+            elif key == 'short_bio':
+                item_data[key] = item.get(value, None)
+
+            elif key == 'detail_bio':
+                item_data[key] = item.get(value, None)
 
             else:
                 try:

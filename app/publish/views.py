@@ -24,6 +24,7 @@ from .tasks import generic_task_enqueue
 from models.log.publish_log import PublishLog as PublishLogModel
 from django_scopes import scopes_disabled
 from datetime import datetime
+from decouple import config
 
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
@@ -67,7 +68,7 @@ def publish(request):
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
-    elif action == 'record':
+    elif action == 'record_add' or action == 'record_update' or action == 'record_delete':
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)
         mongo_data['course_provider_id'] = str(request.course_provider.id)
 
@@ -176,8 +177,14 @@ def health_check(request):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def checkout_info(request):
+    try:
+        expiration_time = config('CHECKOUT_INFO_EXPIRATION_TIME')
+    except Exception as e:
+        expiration_time = 600
+
     payload = request.data.copy()
-    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time':10})
+    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time': expiration_time})
+
     if login_user_serializer.is_valid():
         login_user = login_user_serializer.save()
     else:

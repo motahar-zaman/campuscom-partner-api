@@ -103,6 +103,7 @@ def format_course_enrollment_data(course_enrollment, payment, profile):
 
     data['external_id'] = external_id
     data['enrollment_id'] = course_enrollment.ref_id
+    data['enrollment_status'] = course_enrollment.status
     data['product_type'] = 'section'
     data['registration_details'] = registration_details
     data['student'] = {

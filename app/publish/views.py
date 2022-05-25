@@ -1,10 +1,9 @@
 from rest_framework.response import Response
 from django.http import HttpResponse
-from shared_models.models import Profile, CourseSharingContract
+from shared_models.models import Profile, CourseSharingContract, Notification, Cart, Payment, CourseEnrollment
 from models.courseprovider.course_provider import CourseProvider as CourseProviderModel
 
-from publish.serializers import ProfileSerializer
-from publish.serializers import CheckoutLoginUserModelSerializer
+from publish.serializers import ProfileSerializer, CheckoutLoginUserModelSerializer
 
 from rest_framework.status import (
     HTTP_200_OK,
@@ -16,12 +15,16 @@ from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
 from .helpers import transale_j1_data, j1_publish, deactivate_course
+
 from hashlib import md5
 
 from publish.serializers import PublishJobModelSerializer, PublishLogModelSerializer
 from campuslibs.loggers.mongo import save_to_mongo
 from .tasks import generic_task_enqueue
 from models.log.publish_log import PublishLog as PublishLogModel
+from django_scopes import scopes_disabled
+from datetime import datetime
+from decouple import config
 
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
@@ -65,7 +68,7 @@ def publish(request):
 
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
-    elif action == 'record':
+    elif action == 'record_add' or action == 'record_update' or action == 'record_delete':
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)
         mongo_data['course_provider_id'] = str(request.course_provider.id)
 
@@ -174,8 +177,14 @@ def health_check(request):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def checkout_info(request):
+    try:
+        expiration_time = config('CHECKOUT_INFO_EXPIRATION_TIME')
+    except Exception as e:
+        expiration_time = 600
+
     payload = request.data.copy()
-    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time':10})
+    login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time': expiration_time})
+
     if login_user_serializer.is_valid():
         login_user = login_user_serializer.save()
     else:
@@ -187,4 +196,5 @@ def checkout_info(request):
     login_user.save()
 
     return Response({'tid': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+
 

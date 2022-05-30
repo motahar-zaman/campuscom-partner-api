@@ -617,7 +617,7 @@ def upsert_j1_data_into_mongo(query, data):
         # add rest of the sections from the old data keep as it was
         for old_section in course_model.sections:
             for new_section in updated_sections_data:
-                if old_section.code == new_section.code:
+                if old_section.code == new_section['code']:
                     break
             else:
                 updated_sections_data.append(old_section)

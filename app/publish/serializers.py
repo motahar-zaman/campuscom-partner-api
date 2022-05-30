@@ -9,7 +9,7 @@ from models.courseprovider.instructor import Instructor as InstructorModel
 from models.publish.publish_job import PublishJob as PublishJobModel
 from models.log.publish_log import PublishLog as PublishLogModel
 from models.checkout.checkout_login_user import CheckoutLoginUser as CheckoutLoginUserModel
-
+from models.course.section_schedule import SectionSchedule as SectionScheduleModel
 
 from rest_framework_mongoengine.fields import ReferenceField
 
@@ -93,3 +93,9 @@ class InstructorModelSerializer(DocumentSerializer):
     class Meta:
         model = InstructorModel
         fields = ('id', 'provider', 'name', 'external_id', 'profile_urls', 'image', 'short_bio', 'detail_bio')
+
+
+class SectionScheduleModelSerializer(EmbeddedDocumentSerializer):
+
+    class Meta:
+        model = SectionScheduleModel

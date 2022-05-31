@@ -595,9 +595,12 @@ def upsert_j1_data_into_mongo(data):
                         )
                         if section_model_serializer.is_valid():
                             section_model_serializer.save()
-                            # upsert instructors
-                            updated_instructors = list(set(old_section.instructors + instructors_data))
-                            section_model_serializer.data['instructors'] = updated_instructors
+
+                            # update instructors
+                            old_instructors = [instructor.id for instructor in old_section.instructors]
+                            for instructor in instructors_data:
+                                if instructor not in old_instructors:
+                                    section_model_serializer.data['instructors'].append(instructor)
 
                             # upsert schedules
                             for new_schedule in schedules_data:

@@ -41,7 +41,7 @@ def get_instructors(data, course_provider_model):
     instructors = []
     for item in data:
         query = {'provider': course_provider_model.id, 'external_id': item.get('external_id', '')}
-        data = {
+        instructor_data = {
             '_cls': 'Instructor',
             'provider': course_provider_model.id,
             'name': item.get('name', ''),
@@ -52,9 +52,9 @@ def get_instructors(data, course_provider_model):
             'detail_bio': item.get('detail_bio', None),
         }
 
-        instructor_model_serializer = InstructorModelSerializer(data=data)
+        instructor_model_serializer = InstructorModelSerializer(data=instructor_data)
         if instructor_model_serializer.is_valid():
-            instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=data))
+            instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=instructor_data))
     return instructors
 
 

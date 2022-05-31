@@ -25,6 +25,7 @@ def get_schedules(data):
         schedules.append({
             'section_type': item.get('section_type', 'LEC'),
             'external_version_id': item.get('external_version_id', ''),
+            'external_id': item.get('external_id', ''),
             'name': item.get('name', ''),
             'description': item.get('description', ''),
             'start_at': get_datetime_obj(item.get('start_at')),
@@ -291,7 +292,7 @@ def transale_j1_data(request_data):
         'description': 'catalog_text',
         'sections': {
             'code': 'section_appid',
-            'external_version_id': 'external_version_id',
+            'external_version_id': 'section_appid',
             'description': 'description',
             'registration_url': 'registration_url',
             'details_url': 'details_url',
@@ -318,9 +319,10 @@ def transale_j1_data(request_data):
             'load_hours': 'load_hours',
             'schedules': {
                 'section_type': ['meeting_cde', 'LEC'],
-                'external_version_id': 'external_version_id',
+                'external_id': 'section_schedule_appid',
+                'external_version_id': 'section_schedule_appid',
                 'name': 'name',
-                'description': 'description',
+                'description': 'location_description',
                 'start_at': ['begin_dte', 'begin_tim'],
                 'end_at': ['end_dte', 'end_tim'],
                 'building_name': 'building_description',
@@ -352,9 +354,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
     course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 
-    query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
-    # doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
-    doc_id = upsert_j1_data_into_mongo(query, course_model_data)
+    doc_id = upsert_j1_data_into_mongo(course_model_data)
 
     course_data['content_db_reference'] = str(doc_id)
     with scopes_disabled():
@@ -552,35 +552,37 @@ def deactivate_course(request, request_data, contracts, course_provider_model):
     return (True, 'action performed successfully')
 
 
-def upsert_j1_data_into_mongo(query, data):
+def upsert_j1_data_into_mongo(data):
     try:
         course_model = CourseModel.objects.get(external_id=data['external_id'], provider=data['provider'])
     except CourseModel.DoesNotExist:
         course_model_serializer = CourseModelSerializer(data=data)
         if course_model_serializer.is_valid():
             try:
-                course_model_serializer.save()
+                course = course_model_serializer.save()
             except NotUniqueError:
                 return False
+            return course.id
+        return False
     else:
-        course_data = data
+        course_data = data.copy()
         sections_data = course_data.pop('sections')
         course_model_serializer = CourseModelSerializer(course_model, data=course_data, partial=True)
+        if course_model_serializer.is_valid():
+            course_model_serializer.save()
+        course_model.reload()
 
         old_section_codes = [section['code'] for section in course_model.sections]
-        # new_section_codes = [section['code'] for section in sections_data]
 
-        updated_sections_data = []
         # section upsert for new section data
         for section in sections_data:
+            section_model_serializer = CheckSectionModelValidationSerializer(data=section)
             if section['code'] not in old_section_codes:
-                # this is new
-                section_model_serializer = CheckSectionModelValidationSerializer(section)
-
+                # this is new section
                 if section_model_serializer.is_valid():
-                    updated_sections_data.append(section)
+                    course_model.sections.append(SectionModel(**section_model_serializer.data))
                 else:
-                    continue
+                    print(section_model_serializer.errors)
             else:
                 # this is present in the old sections. so has to update
                 instructors_data = section.pop('instructors')
@@ -592,41 +594,26 @@ def upsert_j1_data_into_mongo(query, data):
                             old_section, data=section, partial=True
                         )
                         if section_model_serializer.is_valid():
+                            section_model_serializer.save()
                             # upsert instructors
                             updated_instructors = list(set(old_section.instructors + instructors_data))
                             section_model_serializer.data['instructors'] = updated_instructors
 
                             # upsert schedules
-                            updated_schedules = []
                             for new_schedule in schedules_data:
                                 for schedule_idx, old_schedule in enumerate(old_section.schedules):
-                                    if new_schedule.external_id == old_schedule.external_id:
+                                    if new_schedule['external_id'] == old_schedule.external_id:
                                         schedule_serializer = SectionScheduleModelSerializer(old_schedule, data=new_schedule, partial=True)
                                         if schedule_serializer.is_valid():
-                                            updated_schedules.append(schedule_serializer.data)
+                                            schedule_serializer.save()
+                                            section_model_serializer.data['schedules'][schedule_idx].update(schedule_serializer.data)
                                             break
                                 else:
                                     new_schedule_serializer = SectionScheduleModelSerializer(data=new_schedule)
                                     if new_schedule_serializer.is_valid():
-                                        updated_schedules.append(new_schedule_serializer.data)
+                                        section_model_serializer.data['schedules'].append(new_schedule_serializer.data)
 
-                            section_model_serializer.data['schedules'] = updated_schedules
-                        # course_model.sections[section_idx].instructors = new_instructors
-                        updated_sections_data.append(section_model_serializer.data)
+                            course_model.sections[section_idx] = SectionModel(**section_model_serializer.data)
 
-        # add rest of the sections from the old data keep as it was
-        for old_section in course_model.sections:
-            for new_section in updated_sections_data:
-                if old_section.code == new_section['code']:
-                    break
-            else:
-                updated_sections_data.append(old_section)
-
-        if course_model_serializer.is_valid():
-            course_model_serializer.data['sections'] = updated_sections_data
-            try:
-                course_model_serializer.save()
-            except NotUniqueError:
-                return False
-
-    return True
+        course_model.save()
+        return course_model.id

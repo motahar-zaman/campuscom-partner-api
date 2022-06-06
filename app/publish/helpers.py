@@ -3,18 +3,19 @@ from mongoengine import get_db
 from decimal import Decimal
 
 from datetime import datetime
-
+from mongoengine import NotUniqueError
 from json import JSONEncoder
 from bson.objectid import ObjectId
-from publish.serializers import CourseSerializer, SectionSerializer, InstructorModelSerializer
+from publish.serializers import CourseSerializer, SectionSerializer, InstructorModelSerializer, CourseModelSerializer,\
+    CheckSectionModelValidationSerializer, SectionScheduleModelSerializer
 from models.course.course import Course as CourseModel
+from models.course.section import Section as SectionModel
 from shared_models.models import Course, Section, CourseSharingContract, StoreCourse, Product, StoreCourseSection,\
     Payment, QuestionBank, CourseEnrollment, StudentProfile
 from django_scopes import scopes_disabled
 from django.db import transaction
 
 import requests
-from models.course.course import Course as CourseModel
 from decouple import config
 
 
@@ -24,6 +25,7 @@ def get_schedules(data):
         schedules.append({
             'section_type': item.get('section_type', 'LEC'),
             'external_version_id': item.get('external_version_id', ''),
+            'external_id': item.get('external_id', ''),
             'name': item.get('name', ''),
             'description': item.get('description', ''),
             'start_at': get_datetime_obj(item.get('start_at')),
@@ -39,7 +41,7 @@ def get_instructors(data, course_provider_model):
     instructors = []
     for item in data:
         query = {'provider': course_provider_model.id, 'external_id': item.get('external_id', '')}
-        data = {
+        instructor_data = {
             '_cls': 'Instructor',
             'provider': course_provider_model.id,
             'name': item.get('name', ''),
@@ -50,9 +52,9 @@ def get_instructors(data, course_provider_model):
             'detail_bio': item.get('detail_bio', None),
         }
 
-        instructor_model_serializer = InstructorModelSerializer(data=data)
+        instructor_model_serializer = InstructorModelSerializer(data=instructor_data)
         if instructor_model_serializer.is_valid():
-            instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=data))
+            instructors.append(upsert_mongo_doc(collection='instructor', query=query, data=instructor_data))
     return instructors
 
 
@@ -290,7 +292,7 @@ def transale_j1_data(request_data):
         'description': 'catalog_text',
         'sections': {
             'code': 'section_appid',
-            'external_version_id': 'external_version_id',
+            'external_version_id': 'section_appid',
             'description': 'description',
             'registration_url': 'registration_url',
             'details_url': 'details_url',
@@ -317,9 +319,10 @@ def transale_j1_data(request_data):
             'load_hours': 'load_hours',
             'schedules': {
                 'section_type': ['meeting_cde', 'LEC'],
-                'external_version_id': 'external_version_id',
+                'external_id': 'section_schedule_appid',
+                'external_version_id': 'section_schedule_appid',
                 'name': 'name',
-                'description': 'description',
+                'description': 'location_description',
                 'start_at': ['begin_dte', 'begin_tim'],
                 'end_at': ['end_dte', 'end_tim'],
                 'building_name': 'building_description',
@@ -351,8 +354,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
     course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 
-    query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
-    doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
+    doc_id = upsert_j1_data_into_mongo(course_model_data)
+
     course_data['content_db_reference'] = str(doc_id)
     with scopes_disabled():
         try:
@@ -361,6 +364,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
             course_serializer = CourseSerializer(data=course_data)
         else:
             course_serializer = CourseSerializer(course, data=course_data)
+
         if course_serializer.is_valid(raise_exception=True):
             course = course_serializer.save()
             course.active_status = True
@@ -547,3 +551,72 @@ def deactivate_course(request, request_data, contracts, course_provider_model):
 
     return (True, 'action performed successfully')
 
+
+def upsert_j1_data_into_mongo(data):
+    try:
+        course_model = CourseModel.objects.get(external_id=data['external_id'], provider=data['provider'])
+    except CourseModel.DoesNotExist:
+        course_model_serializer = CourseModelSerializer(data=data)
+        if course_model_serializer.is_valid():
+            try:
+                course = course_model_serializer.save()
+            except NotUniqueError:
+                return False
+            return course.id
+        return False
+    else:
+        course_data = data.copy()
+        sections_data = course_data.pop('sections')
+        course_model_serializer = CourseModelSerializer(course_model, data=course_data, partial=True)
+        if course_model_serializer.is_valid():
+            course_model_serializer.save()
+        course_model.reload()
+
+        old_section_codes = [section['code'] for section in course_model.sections]
+
+        # section upsert for new section data
+        for section in sections_data:
+            section_model_serializer = CheckSectionModelValidationSerializer(data=section)
+            if section['code'] not in old_section_codes:
+                # this is new section
+                if section_model_serializer.is_valid():
+                    course_model.sections.append(SectionModel(**section_model_serializer.data))
+                else:
+                    print(section_model_serializer.errors)
+            else:
+                # this is present in the old sections. so has to update
+                instructors_data = section.pop('instructors')
+                schedules_data = section.pop('schedules')
+
+                for section_idx, old_section in enumerate(course_model.sections):
+                    if old_section.code == section['code']:
+                        section_model_serializer = CheckSectionModelValidationSerializer(
+                            old_section, data=section, partial=True
+                        )
+                        if section_model_serializer.is_valid():
+                            section_model_serializer.save()
+
+                            # update instructors
+                            old_instructors = [instructor.id for instructor in old_section.instructors]
+                            for instructor in instructors_data:
+                                if instructor not in old_instructors:
+                                    section_model_serializer.data['instructors'].append(instructor)
+
+                            # upsert schedules
+                            for new_schedule in schedules_data:
+                                for schedule_idx, old_schedule in enumerate(old_section.schedules):
+                                    if new_schedule['external_id'] == old_schedule.external_id:
+                                        schedule_serializer = SectionScheduleModelSerializer(old_schedule, data=new_schedule, partial=True)
+                                        if schedule_serializer.is_valid():
+                                            schedule_serializer.save()
+                                            section_model_serializer.data['schedules'][schedule_idx].update(schedule_serializer.data)
+                                            break
+                                else:
+                                    new_schedule_serializer = SectionScheduleModelSerializer(data=new_schedule)
+                                    if new_schedule_serializer.is_valid():
+                                        section_model_serializer.data['schedules'].append(new_schedule_serializer.data)
+
+                            course_model.sections[section_idx] = SectionModel(**section_model_serializer.data)
+
+        course_model.save()
+        return course_model.id

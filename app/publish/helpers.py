@@ -356,6 +356,9 @@ def j1_publish(request, request_data, contracts, course_provider_model):
 
     doc_id = upsert_j1_data_into_mongo(course_model_data)
 
+    if not doc_id:
+        return False
+
     course_data['content_db_reference'] = str(doc_id)
     with scopes_disabled():
         try:

@@ -50,22 +50,22 @@ def handle_student_event(payload, cart, course_provider):
         else:
             profile = enrollment.profile
         if profile is not None:
-            contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
-            for contract in contracts:
-                try:
-                    student_profile = StudentProfile.objects.get(
-                        profile=profile, store=contract.store
-                    )
-                except StudentProfile.DoesNotExist:
-                    StudentProfile.objects.create(
-                        profile=profile,
-                        store=contract.store,
-                        external_profile_id=str(item['school_student_id'])
-                    )
-                else:
-                    student_profile.external_profile_id = str(
-                        item['school_student_id'])
-                    student_profile.save()
+            # contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
+            # for contract in contracts:
+            try:
+                student_profile = StudentProfile.objects.get(
+                    profile=profile, course_provider=course_provider
+                )
+            except StudentProfile.DoesNotExist:
+                StudentProfile.objects.create(
+                    profile=profile,
+                    course_provider=course_provider,
+                    external_profile_id=str(item['school_student_id'])
+                )
+            else:
+                student_profile.external_profile_id = str(
+                    item['school_student_id'])
+                student_profile.save()
     return True
 
 

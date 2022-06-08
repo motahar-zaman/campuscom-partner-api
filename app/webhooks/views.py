@@ -69,6 +69,16 @@ def handle_student_event(payload, cart, course_provider):
                 student_profile.external_profile_id = str(item['school_student_id'])
                 student_profile.save()
 
+            # tag profile of the purchaser with store
+            try:
+                obj, created = ProfileStore.objects.get_or_create(
+                    profile=cart.profile,
+                    store=cart.store,
+                    defaults={'is_primary': False},
+                )
+            except Exception:
+                pass
+
             # tag profile of the student with store
             try:
                 obj, created = ProfileStore.objects.get_or_create(

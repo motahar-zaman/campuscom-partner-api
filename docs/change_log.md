@@ -1,6 +1,7 @@
 # Change Log
 
 ## Tag Profile with Store at Enrollment
+### Change Date: 7 June 2022
 
 ### Previous Scenario
 

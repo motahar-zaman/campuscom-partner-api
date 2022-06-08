@@ -9,7 +9,7 @@ We didn't tag profile with store if payment = 0. for this reason we didn't get s
 ### Previous Scenario
 
 When checkout a course/section from consumer API, student/purchaser profiles were created by the following
-1. From the very beginning, purchaser profile (Profile Model) created
+1. From the initiate_payment(checkout api) method, create purchaser profile (Profile Model) first
 2. Create cart with purchaser profile, then
    1. If payment > 0, request payment gateway with necessary info to authorize payment amount. Return to webhooks with response
    2. If success, tag purchaser profile with store (ProfileStore Model)

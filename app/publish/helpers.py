@@ -351,13 +351,16 @@ def get_data(collection, query):
 
 
 def j1_publish(request, request_data, contracts, course_provider_model):
+    errors = {}
     course_model_data = prepare_course_mongo(request_data, request.course_provider, course_provider_model)
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 
-    doc_id = upsert_j1_data_into_mongo(course_model_data)
+    query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
+    doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
+    # doc_id, errors = upsert_j1_data_into_mongo(course_model_data)
 
     if not doc_id:
-        return False
+        return False, errors
 
     course_data['content_db_reference'] = str(doc_id)
     with scopes_disabled():
@@ -368,10 +371,13 @@ def j1_publish(request, request_data, contracts, course_provider_model):
         else:
             course_serializer = CourseSerializer(course, data=course_data)
 
-        if course_serializer.is_valid(raise_exception=True):
+        if course_serializer.is_valid():
             course = course_serializer.save()
             course.active_status = True
             course.save()
+        else:
+            errors['course_pg'] = course_serializer.errors
+            return False, errors
 
         course_model = CourseModel.objects.get(id=course.content_db_reference)
         course_model._is_published = False
@@ -402,10 +408,13 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                 else:
                     serializer = SectionSerializer(section, data=section_data)
 
-                if serializer.is_valid(raise_exception=True):
+                if serializer.is_valid():
                     section = serializer.save()
                     section.active_status = True
                     section.save()
+                else:
+                    errors['section_pg__' + section_data['name']] = serializer.errors
+                    continue
 
                 try:
                     store_course_section = StoreCourseSection.objects.get(store_course=store_course, section=section)
@@ -443,7 +452,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.active_status = True
                     product.save()
 
-    return True
+    return True, errors
 
 
 def es_course_unpublish(store_course):
@@ -556,6 +565,8 @@ def deactivate_course(request, request_data, contracts, course_provider_model):
 
 
 def upsert_j1_data_into_mongo(data):
+    errors = {}
+    course_id = None
     try:
         course_model = CourseModel.objects.get(external_id=data['external_id'], provider=data['provider'])
     except CourseModel.DoesNotExist:
@@ -564,30 +575,39 @@ def upsert_j1_data_into_mongo(data):
             try:
                 course = course_model_serializer.save()
             except NotUniqueError:
-                return False
-            return course.id
-        return False
+                errors['course_mongo'] = {'title': ['Tried to save duplicate unique key slug from title']}
+                return False, errors
+            else:
+                course_id = course.id
+        else:
+            errors['course_mongo'] = course_model_serializer.errors
+            return False, errors
+
     else:
         course_data = data.copy()
         sections_data = course_data.pop('sections')
         course_model_serializer = CourseModelSerializer(course_model, data=course_data, partial=True)
         if course_model_serializer.is_valid():
             course_model_serializer.save()
-        course_model.reload()
+        else:
+            errors['course_mongo'] = course_model_serializer.errors
+            return False, errors
 
+        course_model.reload()
         old_section_codes = [section['code'] for section in course_model.sections]
 
         # section upsert for new section data
         for section in sections_data:
             section_model_serializer = CheckSectionModelValidationSerializer(data=section)
             if section['code'] not in old_section_codes:
-                # this is new section
+                # this section is new
                 if section_model_serializer.is_valid():
                     course_model.sections.append(SectionModel(**section_model_serializer.data))
                 else:
-                    print(section_model_serializer.errors)
+                    errors['section_mongo__'+section['code']] = section_model_serializer.errors
+                    continue
             else:
-                # this is present in the old sections. so has to update
+                # this section is present in the old sections. so has to update
                 instructors_data = section.pop('instructors')
                 schedules_data = section.pop('schedules')
 
@@ -609,17 +629,31 @@ def upsert_j1_data_into_mongo(data):
                             for new_schedule in schedules_data:
                                 for schedule_idx, old_schedule in enumerate(old_section.schedules):
                                     if new_schedule['external_id'] == old_schedule.external_id:
+                                        # this schedule is exists, so update
                                         schedule_serializer = SectionScheduleModelSerializer(old_schedule, data=new_schedule, partial=True)
                                         if schedule_serializer.is_valid():
                                             schedule_serializer.save()
                                             section_model_serializer.data['schedules'][schedule_idx].update(schedule_serializer.data)
                                             break
+                                        else:
+                                            key = 'section_mongo__' + section['code'] + 'schedule'\
+                                                  + new_schedule['external_id']
+                                            errors[key] = schedule_serializer.errors
                                 else:
+                                    # this schedule is new
                                     new_schedule_serializer = SectionScheduleModelSerializer(data=new_schedule)
                                     if new_schedule_serializer.is_valid():
                                         section_model_serializer.data['schedules'].append(new_schedule_serializer.data)
+                                    else:
+                                        key = 'section_mongo__' + section['code'] + 'schedule' \
+                                              + new_schedule['external_id']
+                                        errors[key] = new_schedule_serializer.errors
 
                             course_model.sections[section_idx] = SectionModel(**section_model_serializer.data)
+                        else:
+                            errors['section_mongo__' + section['code']] = section_model_serializer.errors
+                            continue
 
         course_model.save()
-        return course_model.id
+        course_id = course_model.id
+    return course_id, errors

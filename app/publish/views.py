@@ -64,9 +64,10 @@ def publish(request):
             status, message = deactivate_course(request, request_data, contracts, course_provider_model)
             return Response({'message': message}, status=HTTP_200_OK)
 
-        j1_publish(request, request_data, contracts, course_provider_model)
+        response, errors = j1_publish(request, request_data, contracts, course_provider_model)
 
-        return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
+        # return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
+        return Response({'message': 'action performed successfully', 'errors': errors}, status=HTTP_201_CREATED)
 
     elif action == 'record_add' or action == 'record_update' or action == 'record_delete':
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)

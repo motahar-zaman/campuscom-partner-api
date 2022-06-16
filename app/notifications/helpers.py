@@ -1,14 +1,77 @@
 from notifications.serializers import PaymentSerializer
 from models.course.course import Course as CourseModel
-from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile
+from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile, RelatedProduct, CartItem,\
+    StoreConfiguration
 from django.core.exceptions import ValidationError
 
 
-def format_notification_response(cart, course_enrollment = None):
+def format_notification_response(cart, course_enrollment=None):
     data = {}
     enrollment_data = []
     payment_data = None
     agreement_details = {}
+    additional_products = []
+    associated_products = []
+    related_products = []
+    enable_standalone_product_checkout = False
+    enable_registration_product_checkout = False
+
+    # import ipdb
+    # ipdb.set_trace()
+    try:
+        store_config = StoreConfiguration.objects.get(
+            store=cart.store,
+            external_entity__entity_type='enrollment_config',
+            external_entity__entity_name='Checkout Configuration'
+        )
+    except Exception:
+        pass
+    else:
+        enable_standalone_product_checkout = store_config.config_value['enable_standalone_product_checkout']
+        enable_registration_product_checkout = store_config.config_value['enable_registration_product_checkout']
+        for product in cart.cart_details:
+            if product['is_related']:
+                relation_type = ''
+                if product['student_email']:
+                    relation_type = 'registration'
+                else:
+                    relation_type = 'standalone'
+                try:
+                    cart_item = CartItem.objects.get(
+                        cart=cart,
+                        product=product['product_id'],
+                        parent_product=product['related_to']
+                    )
+                    # related_product = RelatedProduct.objects.get(
+                    #     product=product['related_to'],
+                    #     related_product=product['product_id'],
+                    #     related_product_type=relation_type
+                    # )
+                except Exception:
+                    continue
+                else:
+                    related_products.append({
+                        'child': product['product_id'],
+                        'parent': product['related_to'],
+                        'student': product['student_email'],
+                        'quantity': product['quantity'],
+                        'relation_type': relation_type
+                    })
+
+                    related_product_info = {
+                            'external_id': cart_item.product.external_id,
+                            'quantity': cart_item.quantity,
+                            'product_type': cart_item.product.product_type,
+                            'unit_price': cart_item.unit_price,
+                            'discount': cart_item.discount_amount,
+                            'sales_tax': cart_item.sales_tax
+                        }
+
+                    if relation_type == 'standalone':
+                        additional_products.append(related_product_info)
+                    else:
+                        related_product_info['student'] = product['student_email']
+                        associated_products.append(related_product_info)
 
     try:
         payment = Payment.objects.get(cart=cart)
@@ -17,7 +80,7 @@ def format_notification_response(cart, course_enrollment = None):
     else:
         payment_data = PaymentSerializer(payment).data
 
-        for key, val in payment.cart.agreement_details.items():
+        for key, val in cart.agreement_details.items():
             try:
                 question = QuestionBank.objects.get(id=key)
             except (QuestionBank.DoesNotExist, ValidationError):
@@ -39,6 +102,8 @@ def format_notification_response(cart, course_enrollment = None):
     data['enrollments'] = enrollment_data
     data['payment'] = payment_data
     data['agreement_details'] = agreement_details
+    if enable_standalone_product_checkout:
+        data['additional_products'] = additional_products
 
     return data
 

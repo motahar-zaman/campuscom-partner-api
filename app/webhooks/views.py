@@ -2,7 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from publish.permissions import HasCourseProviderAPIKey
-from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, CourseSharingContract
+from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, ProfileStore,\
+    CourseSharingContract
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
 from .utils import payment_transaction
@@ -37,7 +38,9 @@ def handle_student_event(payload, cart, course_provider):
     for item in payload['enrollments']:
         profile = None
         try:
-            enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'], cart_item__in=cart_items, course__course_provider=course_provider)
+            enrollment = CourseEnrollment.objects.get(
+                ref_id=item['enrollment_id'], cart_item__in=cart_items, course__course_provider=course_provider
+            )
         except CourseEnrollment.DoesNotExist:
             pass
         else:
@@ -50,22 +53,41 @@ def handle_student_event(payload, cart, course_provider):
         else:
             profile = enrollment.profile
         if profile is not None:
-            contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
-            for contract in contracts:
-                try:
-                    student_profile = StudentProfile.objects.get(
-                        profile=profile, store=contract.store
-                    )
-                except StudentProfile.DoesNotExist:
-                    StudentProfile.objects.create(
-                        profile=profile,
-                        store=contract.store,
-                        external_profile_id=str(item['school_student_id'])
-                    )
-                else:
-                    student_profile.external_profile_id = str(
-                        item['school_student_id'])
-                    student_profile.save()
+            # contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
+            # for contract in contracts:
+            try:
+                student_profile = StudentProfile.objects.get(
+                    profile=profile, course_provider=course_provider
+                )
+            except StudentProfile.DoesNotExist:
+                StudentProfile.objects.create(
+                    profile=profile,
+                    course_provider=course_provider,
+                    external_profile_id=str(item['school_student_id'])
+                )
+            else:
+                student_profile.external_profile_id = str(item['school_student_id'])
+                student_profile.save()
+
+            # tag profile of the purchaser with store
+            try:
+                obj, created = ProfileStore.objects.get_or_create(
+                    profile=cart.profile,
+                    store=cart.store,
+                    defaults={'is_primary': False},
+                )
+            except Exception:
+                pass
+
+            # tag profile of the student with store
+            try:
+                obj, created = ProfileStore.objects.get_or_create(
+                    profile=profile,
+                    store=cart.store,
+                    defaults={'is_primary': False},
+                )
+            except Exception:
+                pass
     return True
 
 

@@ -42,7 +42,7 @@ def format_notification_response(cart, course_enrollment=[]):
             formatted_enrollment_data['associated_products'] = []
             for associated_product in associated_products:
                 if associated_product['student_email'] == formatted_enrollment_data['student']['email']:
-                    associated_product.pop('student_email')
+
                     formatted_enrollment_data['associated_products'].append(associated_product)
         enrollment_data.append(formatted_enrollment_data)
 
@@ -159,7 +159,7 @@ def format_related_products_data(cart):
                     else:
                         relation_type = 'standalone'
                     try:
-                        cart_item = CartItem.objects.get(
+                        cart_item = CartItem.objects.filter(
                             cart=cart,
                             product=product['product_id'],
                             parent_product=product['related_to']
@@ -167,13 +167,14 @@ def format_related_products_data(cart):
                     except Exception:
                         continue
                     else:
+                        item = cart_item[0]
                         related_product_info = {
-                            'external_id': cart_item.product.external_id,
-                            'quantity': cart_item.quantity,
-                            'product_type': cart_item.product.product_type,
-                            'unit_price': cart_item.unit_price,
-                            'discount': cart_item.discount_amount,
-                            'sales_tax': cart_item.sales_tax
+                            'external_id': item.product.external_id,
+                            'quantity': product['quantity'],
+                            'product_type': item.product.product_type,
+                            'unit_price': item.unit_price,
+                            'discount': item.discount_amount,
+                            'sales_tax': item.sales_tax
                         }
 
                         if relation_type == 'standalone':

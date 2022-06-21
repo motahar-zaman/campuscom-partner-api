@@ -16,8 +16,7 @@ def format_notification_response(cart, course_enrollment=None):
     enable_standalone_product_checkout = False
     enable_registration_product_checkout = False
 
-    # import ipdb
-    # ipdb.set_trace()
+    # find store configuration to get if the store is enabled for related products
     try:
         store_config = StoreConfiguration.objects.get(
             store=cart.store,
@@ -29,50 +28,54 @@ def format_notification_response(cart, course_enrollment=None):
     else:
         enable_standalone_product_checkout = store_config.config_value['enable_standalone_product_checkout']
         enable_registration_product_checkout = store_config.config_value['enable_registration_product_checkout']
-        for product in cart.cart_details:
-            if product['is_related']:
-                relation_type = ''
-                if product['student_email']:
-                    relation_type = 'registration'
-                else:
-                    relation_type = 'standalone'
-                try:
-                    cart_item = CartItem.objects.get(
-                        cart=cart,
-                        product=product['product_id'],
-                        parent_product=product['related_to']
-                    )
-                    # related_product = RelatedProduct.objects.get(
-                    #     product=product['related_to'],
-                    #     related_product=product['product_id'],
-                    #     related_product_type=relation_type
-                    # )
-                except Exception:
-                    continue
-                else:
-                    related_products.append({
-                        'child': product['product_id'],
-                        'parent': product['related_to'],
-                        'student': product['student_email'],
-                        'quantity': product['quantity'],
-                        'relation_type': relation_type
-                    })
 
-                    related_product_info = {
-                            'external_id': cart_item.product.external_id,
-                            'quantity': cart_item.quantity,
-                            'product_type': cart_item.product.product_type,
-                            'unit_price': cart_item.unit_price,
-                            'discount': cart_item.discount_amount,
-                            'sales_tax': cart_item.sales_tax
-                        }
-
-                    if relation_type == 'standalone':
-                        additional_products.append(related_product_info)
+        # if enabled, then find out the related products necessary information
+        if enable_standalone_product_checkout or enable_registration_product_checkout:
+            for product in cart.cart_details:
+                if product['is_related']:
+                    relation_type = ''
+                    if product['student_email']:
+                        relation_type = 'registration'
                     else:
-                        related_product_info['student'] = product['student_email']
-                        associated_products.append(related_product_info)
+                        relation_type = 'standalone'
+                    try:
+                        cart_item = CartItem.objects.get(
+                            cart=cart,
+                            product=product['product_id'],
+                            parent_product=product['related_to']
+                        )
+                        # related_product = RelatedProduct.objects.get(
+                        #     product=product['related_to'],
+                        #     related_product=product['product_id'],
+                        #     related_product_type=relation_type
+                        # )
+                    except Exception:
+                        continue
+                    else:
+                        related_products.append({
+                            'child': product['product_id'],
+                            'parent': product['related_to'],
+                            'student': product['student_email'],
+                            'quantity': product['quantity'],
+                            'relation_type': relation_type
+                        })
 
+                        related_product_info = {
+                                'external_id': cart_item.product.external_id,
+                                'quantity': cart_item.quantity,
+                                'product_type': cart_item.product.product_type,
+                                'unit_price': cart_item.unit_price,
+                                'discount': cart_item.discount_amount,
+                                'sales_tax': cart_item.sales_tax
+                            }
+
+                        if relation_type == 'standalone':
+                            additional_products.append(related_product_info)
+                        else:
+                            related_product_info['student_email'] = product['student_email']
+                            associated_products.append(related_product_info)
+
+    # create the notification details with necessary information
     try:
         payment = Payment.objects.get(cart=cart)
     except Payment.DoesNotExist:
@@ -88,7 +91,8 @@ def format_notification_response(cart, course_enrollment=None):
             agreement_details[question.external_id] = val
 
     if course_enrollment:
-        enrollment_data.append(format_course_enrollment_data(course_enrollment, payment, cart.profile))
+        formatted_enrollment_data = format_course_enrollment_data(course_enrollment, payment, cart.profile)
+        enrollment_data.append(formatted_enrollment_data)
     else:
         try:
             course_enrollment = CourseEnrollment.objects.filter(cart_item__cart=cart)
@@ -96,7 +100,16 @@ def format_notification_response(cart, course_enrollment=None):
             pass
         else:
             for enrollment in course_enrollment:
-                enrollment_data.append(format_course_enrollment_data(enrollment, payment, cart.profile))
+                formatted_enrollment_data = format_course_enrollment_data(enrollment, payment, cart.profile)
+
+                # append registration type related products' information with the related student(enrollment)
+                if enable_registration_product_checkout:
+                    formatted_enrollment_data['associated_products'] = []
+                    for associated_product in associated_products:
+                        if associated_product['student_email'] == formatted_enrollment_data['student']['email']:
+                            associated_product.pop('student_email')
+                            formatted_enrollment_data['associated_products'].append(associated_product)
+                enrollment_data.append(formatted_enrollment_data)
 
     data['order_id'] = str(cart.order_ref)
     data['enrollments'] = enrollment_data

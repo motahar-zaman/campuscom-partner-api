@@ -164,10 +164,10 @@ def format_related_products_data(cart):
                             product=product['product_id'],
                             parent_product=product['related_to']
                         )
+                        item = cart_item[0]
                     except Exception:
                         continue
                     else:
-                        item = cart_item[0]
                         related_product_info = {
                             'external_id': item.product.external_id,
                             'quantity': product['quantity'],

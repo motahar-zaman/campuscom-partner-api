@@ -1,7 +1,7 @@
 from notifications.serializers import PaymentSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile, RelatedProduct, CartItem, \
-    StoreConfiguration
+    StoreConfiguration, Section
 from django.core.exceptions import ValidationError
 
 
@@ -35,16 +35,21 @@ def format_notification_response(cart, course_enrollment=[]):
             pass
 
     for enrollment in course_enrollment:
+        import ipdb
+        ipdb.set_trace()
         formatted_enrollment_data = format_course_enrollment_data(enrollment, payment, cart.profile)
 
         # append registration type related products' information with the related student(enrollment)
         if enable_registration_product_checkout:
             formatted_enrollment_data['associated_products'] = []
             for associated_product in associated_products:
-                if associated_product['student_email'] == formatted_enrollment_data['student']['email']:
-
-                    formatted_enrollment_data['associated_products'].append(associated_product)
-        enrollment_data.append(formatted_enrollment_data)
+                if str(associated_product['parent']) == str(formatted_enrollment_data['product_id']):
+                    product_data = associated_product.copy()
+                    product_data.pop('parent')
+                    formatted_enrollment_data['associated_products'].append(product_data)
+        enroll_data = formatted_enrollment_data.copy()
+        enroll_data.pop('product_id')
+        enrollment_data.append(enroll_data)
 
     data['order_id'] = str(cart.order_ref)
     data['enrollments'] = enrollment_data
@@ -114,6 +119,7 @@ def format_course_enrollment_data(course_enrollment, payment, profile):
             continue
         profile_details[question.external_id] = val
 
+    data['product_id'] = course_enrollment.cart_item.product.id
     data['external_id'] = external_id
     data['enrollment_id'] = course_enrollment.ref_id
     data['enrollment_status'] = course_enrollment.status
@@ -181,6 +187,7 @@ def format_related_products_data(cart):
                             additional_products.append(related_product_info)
                         else:
                             related_product_info['student_email'] = product['student_email']
+                            related_product_info['parent'] = product['related_to']
                             associated_products.append(related_product_info)
 
     return additional_products, associated_products, enable_standalone_product_checkout, \

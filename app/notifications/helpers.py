@@ -41,7 +41,8 @@ def format_notification_response(cart, course_enrollment=[]):
         if enable_registration_product_checkout:
             formatted_enrollment_data['associated_products'] = []
             for associated_product in associated_products:
-                if str(associated_product['parent']) == str(formatted_enrollment_data['product_id']):
+                if str(associated_product['parent']) == str(formatted_enrollment_data['product_id']) and \
+                        associated_product['student_email'] == formatted_enrollment_data['student']['email']:
                     product_data = associated_product.copy()
                     product_data.pop('parent')
                     formatted_enrollment_data['associated_products'].append(product_data)

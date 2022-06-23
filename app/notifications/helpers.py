@@ -35,7 +35,7 @@ def format_notification_response(cart, course_enrollment=[]):
             pass
 
     for enrollment in course_enrollment:
-        formatted_enrollment_data = format_course_enrollment_data(enrollment, payment, cart.profile)
+        formatted_enrollment_data = format_course_enrollment_data(enrollment, payment)
 
         # append registration type related products' information with the related student(enrollment)
         if enable_registration_product_checkout:
@@ -49,7 +49,14 @@ def format_notification_response(cart, course_enrollment=[]):
         enroll_data.pop('product_id')
         enrollment_data.append(enroll_data)
 
+    purchaser = {
+        'first_name': cart.profile.first_name,
+        'last_name': cart.profile.last_name,
+        'primary_email': cart.profile.primary_email,
+    }
+
     data['order_id'] = str(cart.order_ref)
+    data['purchaser_info'] = purchaser
     data['enrollments'] = enrollment_data
     data['payment'] = payment_data
     data['agreement_details'] = agreement_details
@@ -59,8 +66,9 @@ def format_notification_response(cart, course_enrollment=[]):
     return data
 
 
-def format_course_enrollment_data(course_enrollment, payment, profile):
+def format_course_enrollment_data(course_enrollment, payment):
     data = {}
+    profile = course_enrollment.profile
 
     # getting section external_id from mongo section data
     external_id = None

@@ -35,8 +35,6 @@ def format_notification_response(cart, course_enrollment=[]):
             pass
 
     for enrollment in course_enrollment:
-        import ipdb
-        ipdb.set_trace()
         formatted_enrollment_data = format_course_enrollment_data(enrollment, payment, cart.profile)
 
         # append registration type related products' information with the related student(enrollment)

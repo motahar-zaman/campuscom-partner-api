@@ -56,7 +56,6 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=HTTP_200_OK)
 
-
     def list(self, request, *args, **kwargs):
         query_params = request.GET.copy()
         from_date = request.GET.get('from_date', None)

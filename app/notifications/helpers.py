@@ -50,10 +50,20 @@ def format_notification_response(cart, course_enrollment=[]):
         enroll_data.pop('product_id')
         enrollment_data.append(enroll_data)
 
+    purchaser_additional_info = {}
+    extra_info = cart.purchaser_info['extra_info']
+    for item in extra_info:
+        try:
+            question = QuestionBank.objects.get(pk=item)
+        except QuestionBank.DoesNotExist:
+            pass
+        else:
+            purchaser_additional_info[question.external_id] = extra_info[item]
     purchaser = {
-        'first_name': cart.profile.first_name,
-        'last_name': cart.profile.last_name,
-        'primary_email': cart.profile.primary_email,
+        'first_name': cart.purchaser_info['first_name'],
+        'last_name': cart.purchaser_info['last_name'],
+        'primary_email': cart.purchaser_info['primary_email'],
+        "profile_question_answers": purchaser_additional_info
     }
 
     data['order_id'] = str(cart.order_ref)

@@ -1,7 +1,7 @@
 from notifications.serializers import PaymentSerializer
 from models.course.course import Course as CourseModel
-from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile, RelatedProduct, CartItem, \
-    StoreConfiguration, Section
+from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile, CartItem, StoreCompany,\
+    StoreConfiguration
 from django.core.exceptions import ValidationError
 
 
@@ -66,8 +66,28 @@ def format_notification_response(cart, course_enrollment=[]):
         "profile_question_answers": purchaser_additional_info
     }
 
+    # Purchasing for info modified if for company
+    purchasing_for_data = {}
+    purchasing_for = cart.purchaser_info.get('purchasing_for', None)
+    if purchasing_for:
+        purchasing_for_data['type'] = purchasing_for.get('type', None)
+        if purchasing_for_data['type'] == 'company':
+            company_id = purchasing_for.get('ref', None)
+            if company_id:
+                try:
+                    company = StoreCompany.objects.get(pk=company_id)
+                except StoreCompany.DoesNotExist:
+                    pass
+                else:
+                    purchasing_for_data['ref'] = {
+                        'external_id': company_id,
+                        # now we have no external_id for StoreCompany, that's why we sent our uuid
+                        'company_name': company.company_name
+                    }
+
     data['order_id'] = str(cart.order_ref)
     data['purchaser_info'] = purchaser
+    data['purchasing_for'] = purchasing_for_data
     data['enrollments'] = enrollment_data
     data['payment'] = payment_data
     data['agreement_details'] = agreement_details

@@ -1,7 +1,7 @@
 from notifications.serializers import PaymentSerializer
 from models.course.course import Course as CourseModel
 from shared_models.models import Payment, CourseEnrollment, QuestionBank, StudentProfile, CartItem, StoreCompany,\
-    StoreConfiguration
+    StoreConfiguration, CartItemDiscount
 from django.core.exceptions import ValidationError
 
 
@@ -91,6 +91,7 @@ def format_notification_response(cart, course_enrollment=[]):
     data['enrollments'] = enrollment_data
     data['payment'] = payment_data
     data['agreement_details'] = agreement_details
+    data['discounts'] = discount_details(cart)
     if enable_standalone_product_checkout:
         data['additional_products'] = additional_products
 
@@ -229,3 +230,22 @@ def format_related_products_data(cart):
 
     return additional_products, associated_products, enable_standalone_product_checkout, \
            enable_registration_product_checkout
+
+
+def discount_details(cart):
+    discount_details = {}
+    discount_details['total_discount'] = cart.total_discount
+    discount_programs = []
+
+    cart_item_discounts = CartItemDiscount.objects.filter(cart_item__cart=cart)
+    for discount in cart_item_discounts:
+        discount_program = {
+            'external_id': str(discount.discount_program.id),
+            'discount_amount': discount.discount_program.discount_amount,
+            'max_limit': discount.discount_program.max_limit,
+            'code': discount.discount_program.code,
+            'type': discount.discount_program.type
+        }
+        discount_programs.append(discount_program)
+    discount_details['discount_programs'] = discount_programs
+    return discount_details

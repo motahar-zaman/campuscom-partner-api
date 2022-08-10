@@ -356,8 +356,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
     course_data = prepare_course_postgres(request_data, request.course_provider, course_provider_model)
 
     query = {'external_id': course_model_data['external_id'], 'provider': course_model_data['provider']}
-    doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
-    # doc_id, errors = upsert_j1_data_into_mongo(course_model_data)
+    # doc_id = upsert_mongo_doc(collection='course', query=query, data=course_model_data)
+    doc_id, errors = upsert_j1_data_into_mongo(course_model_data)
 
     if not doc_id:
         return False, errors

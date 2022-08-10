@@ -237,7 +237,7 @@ def discount_details(cart):
     discount_details['total_discount'] = cart.total_discount
     discount_programs = []
 
-    cart_item_discounts = CartItemDiscount.objects.filter(cart_item__cart=cart)
+    cart_item_discounts = CartItemDiscount.objects.filter(cart_item__cart=cart.id)
     for discount in cart_item_discounts:
         discount_program = {
             'external_id': str(discount.discount_program.id),

@@ -12,6 +12,7 @@ from .utils import payment_transaction
 def handle_enrollment_event(payload, cart, course_provider):
     with scopes_disabled():
         cart_items = cart.cart_items.all()
+        void_payment_status = True
     for item in payload['enrollments']:
         try:
             enrollment = CourseEnrollment.objects.get(ref_id=item['enrollment_id'], cart_item__in=cart_items, course__course_provider=course_provider)
@@ -19,16 +20,29 @@ def handle_enrollment_event(payload, cart, course_provider):
             pass
         else:
             enrollment.status = CourseEnrollment.STATUS_FAILED
+            with scopes_disabled():
+                payment = enrollment.cart_item.cart.payment_set.first()
             if item['status'] == 'success':
-                with scopes_disabled():
-                    payment = enrollment.cart_item.cart.payment_set.first()
+                void_payment_status = False
                 if payment.amount > 0.0:
                     capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
                 else:
                     enrollment.status = CourseEnrollment.STATUS_SUCCESS
+            elif item['status'] == 'canceled':
+                enrollment.status = CourseEnrollment.STATUS_CANCELED
+            else:
+                void_payment_status = False
             enrollment.save()
+    if void_payment_status:
+        payment = cart.payment_set.first()
+        if payment.amount > 0.0:
+            capture = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
+            if capture:
+                payment.status = payment.STATUS_VOID
+                payment.save()
+
     return True
 
 

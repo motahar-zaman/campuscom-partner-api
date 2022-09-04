@@ -32,7 +32,7 @@ def handle_enrollment_event(payload, cart, course_provider):
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
                 else:
                     enrollment.status = CourseEnrollment.STATUS_SUCCESS
-            elif item['status'] == 'canceled':
+            elif item['status'] == 'cancel':
                 enrollment.status = CourseEnrollment.STATUS_CANCELED
             else:
                 void_payment_status = False

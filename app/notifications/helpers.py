@@ -86,6 +86,7 @@ def format_notification_response(cart, course_enrollment=[]):
                     }
 
     data['order_id'] = str(cart.order_ref)
+    data['order_status'] = cart.status
     data['purchaser_info'] = purchaser
     data['purchasing_for'] = purchasing_for_data
     data['enrollments'] = enrollment_data

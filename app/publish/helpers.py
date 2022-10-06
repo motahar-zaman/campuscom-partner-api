@@ -427,7 +427,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         title=course.title + ' ( ' + section.name + ' )',
                         tax_code='ST080031',
                         fee=section.fee,
-                        minimum_fee=section.fee
+                        minimum_fee=section.fee,
+                        total_quantity=section_data['available_seats'],
                     )
 
                     store_course_section, created = StoreCourseSection.objects.get_or_create(
@@ -450,6 +451,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.fee = section.fee
                     product.minimum_fee = section.fee
                     product.active_status = True
+                    product.total_quantity = section_data['available_seats']
                     product.save()
 
     return True, errors

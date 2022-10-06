@@ -424,7 +424,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         store=contract.store,
                         external_id=course_model_data['external_id'],
                         product_type='section',
-                        title=course.title,
+                        title=course.title + ' ( ' + section.name + ' )',
                         tax_code='ST080031',
                         fee=section.fee,
                         minimum_fee=section.fee
@@ -445,7 +445,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.store = contract.store
                     product.external_id = course_model_data['external_id']
                     product.product_type = 'section'
-                    product.title = course.title
+                    product.title = course.title + ' ( ' + section.name + ' )'
                     product.tax_code = 'ST080031'
                     product.fee = section.fee
                     product.minimum_fee = section.fee

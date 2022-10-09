@@ -34,6 +34,17 @@ def handle_enrollment_event(payload, cart, course_provider):
                     enrollment.status = CourseEnrollment.STATUS_SUCCESS
             elif item['status'] == 'cancel':
                 enrollment.status = CourseEnrollment.STATUS_CANCELED
+
+                # maintain inventory
+                with scopes_disabled():
+                    try:
+                        cart_item = enrollment.cart_item
+                        product = cart_item.product
+                        product.quantity_sold -= cart_item.quantity
+                        product.available_quantity += cart_item.quantity
+                        product.save()
+                    except Exception:
+                        pass
             else:
                 void_payment_status = False
             enrollment.save()

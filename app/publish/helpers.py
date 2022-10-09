@@ -428,7 +428,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         tax_code='ST080031',
                         fee=section.fee,
                         minimum_fee=section.fee,
-                        total_quantity=section_data['available_seats'],
+                        total_quantity=section_data['seat_capacity'],
+                        available_quantity=section_data['available_seats'],
                     )
 
                     store_course_section, created = StoreCourseSection.objects.get_or_create(

@@ -69,7 +69,7 @@ def publish(request):
         # return Response({'message': 'action performed successfully', 'errors': errors}, status=HTTP_201_CREATED)
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
-    elif action == 'record_add' or action == 'record_update' or action == 'record_delete' or action == 'record_tag':
+    elif action == 'record_add' or action == 'record_update' or action == 'record_delete' or action == 'record_tag' or action == 'record_untag':
         mongo_data['course_provider_model_id'] = str(course_provider_model.id)
         mongo_data['course_provider_id'] = str(request.course_provider.id)
 

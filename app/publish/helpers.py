@@ -428,7 +428,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         tax_code='ST080031',
                         fee=section.fee,
                         minimum_fee=section.fee,
-                        total_quantity=section_data['seat_capacity'],
+                        total_quantity=int(section_data['seat_capacity']),
                         available_quantity=section_data['available_seats'],
                     )
 
@@ -452,8 +452,8 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.fee = section.fee
                     product.minimum_fee = section.fee
                     product.active_status = True
-                    product.total_quantity = section_data['seat_capacity'],
-                    product.available_quantity = section_data['available_seats']
+                    product.total_quantity = section_data['seat_capacity']
+                    product.available_quantity = section_data['available_seat']
                     product.save()
 
     return True, errors

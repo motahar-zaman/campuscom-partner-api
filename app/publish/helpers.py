@@ -429,7 +429,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         fee=section.fee,
                         minimum_fee=section.fee,
                         total_quantity=section_data['seat_capacity'],
-                        available_quantity=section_data['available_seats'],
+                        available_quantity=section_data['available_seat'],
                     )
 
                     store_course_section, created = StoreCourseSection.objects.get_or_create(

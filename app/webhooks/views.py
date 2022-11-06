@@ -24,9 +24,15 @@ def handle_enrollment_event(payload, cart, course_provider):
             enrollment.status = CourseEnrollment.STATUS_FAILED
             with scopes_disabled():
                 payment = enrollment.cart_item.cart.payment_set.first()
+
+            admin = False
+            affiliate_payment_info = payment.affiliate_payment_info
+            if affiliate_payment_info and affiliate_payment_info.get('reference', None) and affiliate_payment_info.get('note', None):
+                admin = True
+
             if item['status'] == 'success':
                 void_payment_status = False
-                if payment.amount > 0.0:
+                if payment.amount > 0.0 and not admin:
                     capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
@@ -34,6 +40,17 @@ def handle_enrollment_event(payload, cart, course_provider):
                     enrollment.status = CourseEnrollment.STATUS_SUCCESS
             elif item['status'] == 'cancel':
                 enrollment.status = CourseEnrollment.STATUS_CANCELED
+
+                # maintain inventory
+                with scopes_disabled():
+                    try:
+                        cart_item = enrollment.cart_item
+                        product = cart_item.product
+                        product.quantity_sold -= cart_item.quantity
+                        product.available_quantity += cart_item.quantity
+                        product.save()
+                    except Exception:
+                        pass
             else:
                 void_payment_status = False
             enrollment.save()

@@ -74,6 +74,9 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         else:
             return Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
 
+        # filter by course_provider to ensure notifications are for that course_provider's courses
+        query_params.appendlist('course_provider', request.course_provider)
+
         try:
             notifications = Notification.objects.filter(**query_params.dict())
         except Notification.DoesNotExist:

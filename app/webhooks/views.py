@@ -25,14 +25,14 @@ def handle_enrollment_event(payload, cart, course_provider):
             with scopes_disabled():
                 payment = enrollment.cart_item.cart.payment_set.first()
 
-            admin = False
-            affiliate_payment_info = payment.affiliate_payment_info
-            if affiliate_payment_info and affiliate_payment_info.get('reference', None) and affiliate_payment_info.get('note', None):
-                admin = True
+            # admin = False
+            # affiliate_payment_info = payment.affiliate_payment_info
+            # if affiliate_payment_info and affiliate_payment_info.get('reference', None) and affiliate_payment_info.get('note', None):
+            #     admin = True
 
             if item['status'] == 'success':
                 void_payment_status = False
-                if payment.amount > 0.0 and not admin:
+                if payment.amount > 0.0 and payment.store_payment_gateway:
                     capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS

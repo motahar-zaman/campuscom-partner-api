@@ -32,7 +32,7 @@ def handle_enrollment_event(payload, cart, course_provider):
 
             if item['status'] == 'success':
                 void_payment_status = False
-                if payment.amount > 0.0 and payment.store_payment_gateway:
+                if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
                     capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
@@ -57,7 +57,7 @@ def handle_enrollment_event(payload, cart, course_provider):
     if void_payment_status and course_enrollment:
         with scopes_disabled():
             payment = cart.payment_set.first()
-        if payment.amount > 0.0 and payment.store_payment_gateway:
+        if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
             capture = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
             if capture:
                 payment.status = payment.STATUS_VOID

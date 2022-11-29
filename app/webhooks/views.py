@@ -32,8 +32,26 @@ def handle_enrollment_event(payload, cart, course_provider):
 
             if item['status'] == 'success':
                 void_payment_status = False
+
                 if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
+                    # log before and after payment capture request
+                    data = {
+                        'payload': {
+                            'payment': payment,
+                            'store_payment_gateway': payment.store_payment_gateway
+                        },
+                        'type': 'capture request'
+                    }
+                    save_to_mongo(data, 'payment_request')
+
                     capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
+
+                    data = {
+                        'response': {'capture': capture},
+                        'type': 'capture response'
+                    }
+                    save_to_mongo(data, 'payment_request')
+
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
                 else:

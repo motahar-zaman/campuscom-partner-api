@@ -7,6 +7,7 @@ from shared_models.models import Cart, StudentProfile, CourseEnrollment, Certifi
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
 from .utils import payment_transaction
+from django.utils import timezone
 
 
 def handle_enrollment_event(payload, cart, course_provider):
@@ -37,10 +38,18 @@ def handle_enrollment_event(payload, cart, course_provider):
                     # log before and after payment capture request
                     data = {
                         'payload': {
-                            'payment': payment,
-                            'store_payment_gateway': payment.store_payment_gateway
+                            'payment': {
+                                'id': str(payment.id),
+                                'cart_id': str(payment.cart.id),
+                                'order_ref': payment.cart.order_ref,
+                            },
+                            'store_payment_gateway': {
+                                'id': str(payment.store_payment_gateway.id),
+                                'name': payment.store_payment_gateway.name
+                            }
                         },
-                        'type': 'capture request'
+                        'type': 'capture request',
+                        'request_time': timezone.now()
                     }
                     save_to_mongo(data, 'payment_request')
 
@@ -48,7 +57,13 @@ def handle_enrollment_event(payload, cart, course_provider):
 
                     data = {
                         'response': {'capture': capture},
-                        'type': 'capture response'
+                        'payment': {
+                            'id': str(payment.id),
+                            'cart_id': str(payment.cart.id),
+                            'order_ref': payment.cart.order_ref,
+                        },
+                        'type': 'capture response',
+                        'response_time': timezone.now()
                     }
                     save_to_mongo(data, 'payment_request')
 

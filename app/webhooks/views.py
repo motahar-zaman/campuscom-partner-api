@@ -9,6 +9,7 @@ from campuslibs.loggers.mongo import save_to_mongo
 from .utils import payment_transaction
 from campuslibs.enrollment.common import Common
 from django.utils import timezone
+import re
 
 
 def handle_enrollment_event(payload, cart, course_provider):
@@ -58,7 +59,7 @@ def handle_enrollment_event(payload, cart, course_provider):
 
                     data = {
                         'response': {
-                            'response': to_dict.objectified_element_to_dict(response),
+                            'response': objectified_element_to_dict(response),
                             'capture': capture
                         },
                         'payment': {
@@ -113,7 +114,7 @@ def handle_enrollment_event(payload, cart, course_provider):
             void_transaction, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
             data = {
                 'response': {
-                    'response': to_dict.objectified_element_to_dict(response),
+                    'response': objectified_element_to_dict(response),
                     'void_transaction': void_transaction
                 },
                 'payment': {
@@ -189,6 +190,17 @@ def handle_student_event(payload, cart, course_provider):
                 except Exception:
                     pass
     return True
+
+
+def objectified_element_to_dict(self, element):
+    ret = {}
+    if element.getchildren() == []:
+        return element.text
+    else:
+        for elem in element.getchildren():
+            subdict = objectified_element_to_dict(elem)
+            ret[re.sub('{.*}', '', elem.tag)] = subdict
+    return ret
 
 
 @api_view(['POST'])

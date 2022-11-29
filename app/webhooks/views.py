@@ -7,9 +7,12 @@ from shared_models.models import Cart, StudentProfile, CourseEnrollment, Certifi
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
 from .utils import payment_transaction
+from campuslibs.enrollment.common import Common
+from django.utils import timezone
 
 
 def handle_enrollment_event(payload, cart, course_provider):
+    to_dict = Common()
     with scopes_disabled():
         cart_items = cart.cart_items.all()
     void_payment_status = True
@@ -33,7 +36,40 @@ def handle_enrollment_event(payload, cart, course_provider):
             if item['status'] == 'success':
                 void_payment_status = False
                 if payment.amount > 0.0 and not admin:
-                    capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
+                    # log before and after payment capture request
+                    data = {
+                        'payload': {
+                            'payment': {
+                                'id': str(payment.id),
+                                'cart_id': str(payment.cart.id),
+                                'order_ref': payment.cart.order_ref,
+                            },
+                            'store_payment_gateway': {
+                                'id': str(payment.store_payment_gateway.id),
+                                'name': payment.store_payment_gateway.name
+                            }
+                        },
+                        'type': 'capture request',
+                        'request_time': timezone.now()
+                    }
+                    save_to_mongo(data, 'payment_request')
+
+                    capture, response = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
+
+                    data = {
+                        'response': {
+                            'response': to_dict.objectified_element_to_dict(response),
+                            'capture': capture
+                        },
+                        'payment': {
+                            'id': str(payment.id),
+                            'cart_id': str(payment.cart.id),
+                            'order_ref': payment.cart.order_ref,
+                        },
+                        'type': 'capture response',
+                        'response_time': timezone.now()
+                    }
+                    save_to_mongo(data, 'payment_request')
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
                 else:
@@ -58,8 +94,38 @@ def handle_enrollment_event(payload, cart, course_provider):
         with scopes_disabled():
             payment = cart.payment_set.first()
         if payment.amount > 0.0:
-            capture = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
-            if capture:
+            data = {
+                'payload': {
+                    'payment': {
+                        'id': str(payment.id),
+                        'cart_id': str(payment.cart.id),
+                        'order_ref': payment.cart.order_ref,
+                    },
+                    'store_payment_gateway': {
+                        'id': str(payment.store_payment_gateway.id),
+                        'name': payment.store_payment_gateway.name
+                    }
+                },
+                'type': 'voidTransaction request',
+                'request_time': timezone.now()
+            }
+            save_to_mongo(data, 'payment_request')
+            void_transaction, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
+            data = {
+                'response': {
+                    'response': to_dict.objectified_element_to_dict(response),
+                    'void_transaction': void_transaction
+                },
+                'payment': {
+                    'id': str(payment.id),
+                    'cart_id': str(payment.cart.id),
+                    'order_ref': payment.cart.order_ref,
+                },
+                'type': 'voidTransaction response',
+                'response_time': timezone.now()
+            }
+            save_to_mongo(data, 'payment_request')
+            if void_transaction:
                 payment.status = payment.STATUS_VOID
                 payment.save()
 

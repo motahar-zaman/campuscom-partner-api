@@ -38,7 +38,7 @@ def payment_transaction(payment, store_payment_gateway, transaction_type):
             'transaction_type': transaction_type
         }
         save_to_mongo(data=status_data, collection='enrollment_status_history')
-        return True
+        return True, response
     else:
         status_data = {
             'type': 'payment',
@@ -47,4 +47,4 @@ def payment_transaction(payment, store_payment_gateway, transaction_type):
             'transaction_type': transaction_type
         }
         save_to_mongo(data=status_data, collection='enrollment_status_history')
-        return False
+        return False, response

@@ -192,7 +192,7 @@ def handle_student_event(payload, cart, course_provider):
     return True
 
 
-def objectified_element_to_dict(self, element):
+def objectified_element_to_dict(element):
     ret = {}
     if element.getchildren() == []:
         return element.text

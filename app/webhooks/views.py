@@ -2,15 +2,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK
 from publish.permissions import HasCourseProviderAPIKey
-from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, ProfileStore,\
-    CourseSharingContract
+from shared_models.models import Cart, StudentProfile, CourseEnrollment, CertificateEnrollment, ProfileStore
 from django_scopes import scopes_disabled
 from campuslibs.loggers.mongo import save_to_mongo
+from campuslibs.enrollment.common import Common
 from .utils import payment_transaction
 from django.utils import timezone
 
 
 def handle_enrollment_event(payload, cart, course_provider):
+    to_dict = Common()
     with scopes_disabled():
         cart_items = cart.cart_items.all()
     void_payment_status = True
@@ -53,10 +54,13 @@ def handle_enrollment_event(payload, cart, course_provider):
                     }
                     save_to_mongo(data, 'payment_request')
 
-                    capture = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
+                    capture, response = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
 
                     data = {
-                        'response': {'capture': capture},
+                        'response': {
+                            'response': to_dict.objectified_element_to_dict(response),
+                            'capture': capture
+                        },
                         'payment': {
                             'id': str(payment.id),
                             'cart_id': str(payment.cart.id),
@@ -91,7 +95,37 @@ def handle_enrollment_event(payload, cart, course_provider):
         with scopes_disabled():
             payment = cart.payment_set.first()
         if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
-            capture = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
+            data = {
+                'payload': {
+                    'payment': {
+                        'id': str(payment.id),
+                        'cart_id': str(payment.cart.id),
+                        'order_ref': payment.cart.order_ref,
+                    },
+                    'store_payment_gateway': {
+                        'id': str(payment.store_payment_gateway.id),
+                        'name': payment.store_payment_gateway.name
+                    }
+                },
+                'type': 'voidTransaction request',
+                'request_time': timezone.now()
+            }
+            save_to_mongo(data, 'payment_request')
+            capture, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
+            data = {
+                'response': {
+                    'response': to_dict.objectified_element_to_dict(response),
+                    'capture': capture
+                },
+                'payment': {
+                    'id': str(payment.id),
+                    'cart_id': str(payment.cart.id),
+                    'order_ref': payment.cart.order_ref,
+                },
+                'type': 'voidTransaction response',
+                'response_time': timezone.now()
+            }
+            save_to_mongo(data, 'payment_request')
             if capture:
                 payment.status = payment.STATUS_VOID
                 payment.save()

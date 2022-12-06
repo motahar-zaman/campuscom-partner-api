@@ -49,10 +49,9 @@ def handle_enrollment_event(payload, cart, course_provider):
                                 'name': payment.store_payment_gateway.name
                             }
                         },
-                        'type': 'capture request',
-                        'request_time': timezone.now()
+                        'type': 'capture request of order ' + str(payment.cart.order_ref)
                     }
-                    save_to_mongo(data, 'payment_request')
+                    save_to_mongo(data, 'payment_request_response')
 
                     capture, response = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
 
@@ -66,10 +65,9 @@ def handle_enrollment_event(payload, cart, course_provider):
                             'cart_id': str(payment.cart.id),
                             'order_ref': payment.cart.order_ref,
                         },
-                        'type': 'capture response',
-                        'response_time': timezone.now()
+                        'type': 'capture response of order ' + str(payment.cart.order_ref)
                     }
-                    save_to_mongo(data, 'payment_request')
+                    save_to_mongo(data, 'payment_request_response')
 
                     if capture:
                         enrollment.status = CourseEnrollment.STATUS_SUCCESS
@@ -107,10 +105,9 @@ def handle_enrollment_event(payload, cart, course_provider):
                         'name': payment.store_payment_gateway.name
                     }
                 },
-                'type': 'voidTransaction request',
-                'request_time': timezone.now()
+                'type': 'voidTransaction request of order ' + str(payment.cart.order_ref)
             }
-            save_to_mongo(data, 'payment_request')
+            save_to_mongo(data, 'payment_request_response')
             capture, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
             data = {
                 'response': {
@@ -122,10 +119,9 @@ def handle_enrollment_event(payload, cart, course_provider):
                     'cart_id': str(payment.cart.id),
                     'order_ref': payment.cart.order_ref,
                 },
-                'type': 'voidTransaction response',
-                'response_time': timezone.now()
+                'type': 'voidTransaction response of order ' + str(payment.cart.order_ref)
             }
-            save_to_mongo(data, 'payment_request')
+            save_to_mongo(data, 'payment_request_response')
             if capture:
                 payment.status = payment.STATUS_VOID
                 payment.save()

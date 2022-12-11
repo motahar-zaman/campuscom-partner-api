@@ -1,10 +1,10 @@
 from campuslibs.loggers.mongo import save_to_mongo
 # from authorizenet import apicontractsv1
 from authorizenet.apicontrollers import *
-# from decouple import config
+from decouple import config
 
 def payment_transaction(payment, store_payment_gateway, transaction_type):
-    authorizenet_base_api = 'https://apitest.authorize.net/xml/v1/request.api'
+    authorizenet_base_api = config('AUTHORIZE_NET_BASE_API')
     merchant_auth = apicontractsv1.merchantAuthenticationType()
     merchant_auth.name = store_payment_gateway.payment_gateway_config.configuration['login_id']
     merchant_auth.transactionKey = store_payment_gateway.payment_gateway_config.configuration['transaction_key']

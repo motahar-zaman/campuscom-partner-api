@@ -46,10 +46,39 @@ class RefundViewSet(viewsets.ModelViewSet):
         if status:
             return Response({'message': 'refund request placed successfully'}, status=HTTP_200_OK)
 
-        return Response(
-            {
-                "error": response,
-                "status_code": 400,
-            },
-            status=HTTP_400_BAD_REQUEST,
-        )
+        else:
+            try:
+                errors = response['transactionResponse']['errors']
+            except Exception:
+                return Response(
+                    {
+                        "error": {
+                            "message": "something went wrong, please try again with correct information"
+                        },
+                        "status_code": 400,
+                    },
+                    status=HTTP_400_BAD_REQUEST,
+                )
+            else:
+                for error in errors:
+                    if error['errorCode'] == '54':
+                        return Response(
+                            {
+                                "error": {
+                                    "message": "Might not match required criteria for issuing a refund."
+                                },
+                                "status_code": 400,
+                            },
+                            status=HTTP_400_BAD_REQUEST,
+                        )
+
+                else:
+                    return Response(
+                        {
+                            "error": {
+                                "message": "something went wrong, please try again with correct information"
+                            },
+                            "status_code": 400,
+                        },
+                        status=HTTP_400_BAD_REQUEST,
+                    )

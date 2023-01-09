@@ -25,6 +25,7 @@ from models.log.publish_log import PublishLog as PublishLogModel
 from django_scopes import scopes_disabled
 from datetime import datetime
 from decouple import config
+from api_logging import ApiLogging
 
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
@@ -34,6 +35,10 @@ def publish(request):
     # first of all, save everything to mongodb
     mongo_data = {'payload': payload,  'status': 'initiated'}
     save_to_mongo(data=mongo_data, collection='partner_data')
+
+    log = ApiLogging()
+    log.store_logging_data(request, payload, 'publish', 'request', status_code=HTTP_200_OK)
+
 
     action = payload['action']
     try:
@@ -66,6 +71,7 @@ def publish(request):
 
         response, errors = j1_publish(request, request_data, contracts, course_provider_model)
 
+        log.store_logging_data(request, {'message': 'action performed successfully'}, 'j1_publish', 'response', status_code=HTTP_201_CREATED)
         # return Response({'message': 'action performed successfully', 'errors': errors}, status=HTTP_201_CREATED)
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
@@ -81,7 +87,10 @@ def publish(request):
 
         # now add task to queue. pass the doc id got from save_mongo_db
         generic_task_enqueue('create.publish', str(publish_job.id))
-        return Response({'message': 'successfully created a job', 'job_id': str(publish_job.id)}, status=HTTP_200_OK)
+        response_data = {'message': 'successfully created a job', 'job_id': str(publish_job.id)}
+
+        log.store_logging_data(request, response_data, 'hir_publish', 'response', status_code=HTTP_200_OK)
+        return Response(response_data, status=HTTP_200_OK)
 
     return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
 

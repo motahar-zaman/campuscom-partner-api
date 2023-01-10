@@ -38,17 +38,22 @@ def handle_enrollment_event(payload, cart, course_provider):
                 if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
                     # log before and after payment capture request
                     data = {
-                        'payload': {
+                        'data': {
                             'payment': {
                                 'id': str(payment.id),
                                 'cart_id': str(payment.cart.id),
-                                'order_ref': payment.cart.order_ref,
+                                'order_ref': payment.cart.order_ref
                             },
                             'store_payment_gateway': {
                                 'id': str(payment.store_payment_gateway.id),
                                 'name': payment.store_payment_gateway.name
                             }
                         },
+                        'cart': {
+                            'id': str(payment.cart.id),
+                            'order_ref': payment.cart.order_ref
+                        },
+                        'created_at': timezone.now(),
                         'summary': 'capture request of order ' + str(payment.cart.order_ref)
                     }
                     save_to_mongo(data, 'payment_request_response')
@@ -56,15 +61,16 @@ def handle_enrollment_event(payload, cart, course_provider):
                     capture, response = payment_transaction(payment, payment.store_payment_gateway, 'priorAuthCaptureTransaction')
 
                     data = {
-                        'response': {
+                        'data': {
                             'response': to_dict.objectified_element_to_dict(response),
-                            'capture': capture
+                            'capture': capture,
+                            'payment_id': str(payment.id),
                         },
-                        'payment': {
-                            'id': str(payment.id),
-                            'cart_id': str(payment.cart.id),
+                        'cart': {
+                            'id': str(payment.cart.id),
                             'order_ref': payment.cart.order_ref,
                         },
+                        'created_at': timezone.now(),
                         'summary': 'capture response of order ' + str(payment.cart.order_ref)
                     }
                     save_to_mongo(data, 'payment_request_response')
@@ -94,7 +100,7 @@ def handle_enrollment_event(payload, cart, course_provider):
             payment = cart.payment_set.first()
         if payment.amount > 0.0 and payment.store_payment_gateway and payment.status == 'authorized':
             data = {
-                'payload': {
+                'data': {
                     'payment': {
                         'id': str(payment.id),
                         'cart_id': str(payment.cart.id),
@@ -105,20 +111,26 @@ def handle_enrollment_event(payload, cart, course_provider):
                         'name': payment.store_payment_gateway.name
                     }
                 },
+                'cart': {
+                    'id': str(payment.cart.id),
+                    'order_ref': payment.cart.order_ref,
+                },
+                'created_at': timezone.now(),
                 'summary': 'voidTransaction request of order ' + str(payment.cart.order_ref)
             }
             save_to_mongo(data, 'payment_request_response')
             capture, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
             data = {
-                'response': {
+                'data': {
                     'response': to_dict.objectified_element_to_dict(response),
-                    'capture': capture
+                    'capture': capture,
+                    'payment_id': str(payment.id)
                 },
-                'payment': {
-                    'id': str(payment.id),
-                    'cart_id': str(payment.cart.id),
+                'cart': {
+                    'id': str(payment.cart.id),
                     'order_ref': payment.cart.order_ref,
                 },
+                'created_at': timezone.now(),
                 'summary': 'voidTransaction response of order ' + str(payment.cart.order_ref)
             }
             save_to_mongo(data, 'payment_request_response')

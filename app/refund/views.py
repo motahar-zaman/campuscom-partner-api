@@ -38,7 +38,9 @@ class RefundViewSet(viewsets.ModelViewSet):
                 "error": message,
                 "status_code": 400,
             }
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response}, 'refund request-response from provider ' + request.course_provider.name, status_code=HTTP_400_BAD_REQUEST)
+            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
+                                   'refund request-response from provider ' + request.course_provider.name,
+                                   status_code=HTTP_400_BAD_REQUEST)
             return Response(
                 response,
                 status=HTTP_400_BAD_REQUEST,
@@ -46,11 +48,15 @@ class RefundViewSet(viewsets.ModelViewSet):
 
         status, response = self.refund.refund(request, data, requested_by='partner')
         if status:
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response}, 'refund request-response from provider ' + request.course_provider.name, status_code=HTTP_200_OK)
+            log.store_logging_data(request, {'payload': request.data.copy(), 'response':
+                {'message': 'refund request placed successfully'}}, 'refund request-response from provider ' +
+                                   request.course_provider.name, status_code=HTTP_200_OK)
             return Response({'message': 'refund request placed successfully'}, status=HTTP_200_OK)
 
         else:
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response}, 'refund request-response from provider ' + request.course_provider.name, status_code=HTTP_400_BAD_REQUEST)
+            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
+                                   'refund request-response from provider ' + request.course_provider.name,
+                                   status_code=HTTP_400_BAD_REQUEST)
             try:
                 errors = response['transactionResponse']['errors']
             except Exception:

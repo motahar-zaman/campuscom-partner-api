@@ -35,9 +35,7 @@ def publish(request):
     # first of all, save everything to mongodb
     mongo_data = {'payload': payload,  'status': 'initiated'}
     save_to_mongo(data=mongo_data, collection='partner_data')
-
     log = ApiLogging()
-
 
     action = payload['action']
     if action == 'j1-course':
@@ -50,7 +48,9 @@ def publish(request):
         try:
             request_data = payload['records']
         except KeyError:
-            log.store_logging_data(request, {'payload': payload, 'response': {'message': 'no data provided'}}, 'publish request-response of '+ action +' from ERP', status_code=HTTP_400_BAD_REQUEST, erp=erp)
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': 'no data provided'}},
+                                   'publish request-response of '+ action +' from provider ' +
+                                   request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
             return Response({'message': 'no data provided'})
 
     contracts = CourseSharingContract.objects.filter(course_provider=request.course_provider, is_active=True)
@@ -63,7 +63,9 @@ def publish(request):
     try:
         course_provider_model = CourseProviderModel.objects.get(id=request.course_provider.content_db_reference)
     except CourseProviderModel.DoesNotExist:
-        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'course provider model not found'}}, 'publish request-response of '+ action +' from ERP', status_code=HTTP_400_BAD_REQUEST, erp=erp)
+        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'course provider model not found'}},
+                               'publish request-response of '+ action +' from provider ' + request.course_provider.name,
+                               status_code=HTTP_400_BAD_REQUEST, erp=erp)
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
@@ -72,12 +74,16 @@ def publish(request):
         request_data = transale_j1_data(request_data)
         if payload.get('entity_action', '').strip().lower() == 'd':
             status, message = deactivate_course(request, request_data, contracts, course_provider_model)
-            log.store_logging_data(request, {'payload': payload, 'response': {'message': message}}, 'publish request-response of ' + action + ' from provider ' + request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': message}},
+                                   'publish request-response of ' + action + ' from provider ' +
+                                   request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response({'message': message}, status=HTTP_200_OK)
 
         response, errors = j1_publish(request, request_data, contracts, course_provider_model)
 
-        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'action performed successfully'}}, 'publish request-response of ' + action + ' from provider ' + request.course_provider.name, status_code=HTTP_201_CREATED, erp=erp)
+        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'action performed successfully'}},
+                               'publish request-response of ' + action + ' from provider ' + request.course_provider.name,
+                               status_code=HTTP_201_CREATED, erp=erp)
         # return Response({'message': 'action performed successfully', 'errors': errors}, status=HTTP_201_CREATED)
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
@@ -89,22 +95,29 @@ def publish(request):
         if publish_job_serializer.is_valid():
             publish_job = publish_job_serializer.save()
         else:
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': publish_job_serializer.errors}},
+                                   'publish request-response of ' + action + ' from provider ' + request.course_provider.name,
+                                   status_code=HTTP_201_CREATED, erp=erp)
             return Response({'message': publish_job_serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
         # now add task to queue. pass the doc id got from save_mongo_db
         generic_task_enqueue('create.publish', str(publish_job.id))
         response_data = {'message': 'successfully created a job', 'job_id': str(publish_job.id)}
 
-        log.store_logging_data(request, {'payload': payload, 'response': response_data}, 'publish request-response of ' + action + ' from ERP', status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request, {'payload': payload, 'response': response_data},
+                               'publish request-response of '+ action + ' from provider ' + request.course_provider.name,
+                               status_code=HTTP_200_OK, erp=erp)
         return Response(response_data, status=HTTP_200_OK)
 
-    log.store_logging_data(request, {'payload': payload, 'response': {'message': 'invalid action name'}}, 'publish request-response of ' + action + ' from ERP', status_code=HTTP_200_OK, erp=erp)
+    log.store_logging_data(request, {'payload': payload, 'response': {'message': 'invalid action name'}},
+                           'publish request-response of ' + action + ' from  provider ' + request.course_provider.name,
+                           status_code=HTTP_200_OK, erp=erp)
     return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
 
 
 @api_view(['GET'])
 @permission_classes([HasCourseProviderAPIKey])
-def job_status(request, **kwargs):
+def job_status(request, *args, **kwargs):
     job_id = kwargs['job_id']
     logs = PublishLogModel.objects.filter(publish_job_id=job_id)
     log_serializer = PublishLogModelSerializer(logs, many=True)
@@ -112,6 +125,7 @@ def job_status(request, **kwargs):
     successful = 0
     failed = 0
     pending = 0
+    log = ApiLogging()
     for data in log_data:
         if data['status'] == "failed":
             failed += 1
@@ -134,6 +148,9 @@ def job_status(request, **kwargs):
             'records': log_data
         }
     }
+    log.store_logging_data(request, {'request': kwargs, 'response': formatted_data},
+                           'request-response of job status from provider ' + request.course_provider.name,
+                           status_code=HTTP_200_OK)
     return Response({'data': formatted_data}, status=HTTP_200_OK)
 
 
@@ -194,6 +211,7 @@ def health_check(request):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def checkout_info(request):
+    log = ApiLogging()
     try:
         expiration_time = config('CHECKOUT_INFO_EXPIRATION_TIME')
     except Exception as e:
@@ -205,6 +223,9 @@ def checkout_info(request):
     if login_user_serializer.is_valid():
         login_user = login_user_serializer.save()
     else:
+        log.store_logging_data(request, {'payload': payload, 'response': {'message': login_user_serializer.errors}},
+                               'request-response of checkout-info from provider ' + request.course_provider.name,
+                               status_code=HTTP_400_BAD_REQUEST)
         return Response({'message': login_user_serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
     token = md5(str(login_user.id).encode()).hexdigest()
@@ -212,6 +233,10 @@ def checkout_info(request):
     login_user.status = 'token created'
     login_user.save()
 
-    return Response({'tid': token, 'message': "Checkout Information Received"}, status=HTTP_200_OK)
+    response = {'tid': token, 'message': "Checkout Information Received"}
+    log.store_logging_data(request, {'payload': payload, 'response': response},
+                           'request-response of checkout-info from provider ' + request.course_provider.name,
+                           status_code=HTTP_200_OK)
+    return Response(response, status=HTTP_200_OK)
 
 

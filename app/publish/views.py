@@ -37,16 +37,20 @@ def publish(request):
     save_to_mongo(data=mongo_data, collection='partner_data')
 
     log = ApiLogging()
-    log.store_logging_data(request, payload, 'publish', 'request', status_code=HTTP_200_OK)
 
 
     action = payload['action']
+    if action == 'j1-course':
+        erp = 'j1'
+    else:
+        erp = 'hir'
     try:
         request_data = payload['data']
     except KeyError:
         try:
             request_data = payload['records']
         except KeyError:
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': 'no data provided'}}, 'publish request-response of '+ action +' from ERP', status_code=HTTP_400_BAD_REQUEST, erp=erp)
             return Response({'message': 'no data provided'})
 
     contracts = CourseSharingContract.objects.filter(course_provider=request.course_provider, is_active=True)
@@ -59,6 +63,7 @@ def publish(request):
     try:
         course_provider_model = CourseProviderModel.objects.get(id=request.course_provider.content_db_reference)
     except CourseProviderModel.DoesNotExist:
+        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'course provider model not found'}}, 'publish request-response of '+ action +' from ERP', status_code=HTTP_400_BAD_REQUEST, erp=erp)
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
@@ -67,11 +72,12 @@ def publish(request):
         request_data = transale_j1_data(request_data)
         if payload.get('entity_action', '').strip().lower() == 'd':
             status, message = deactivate_course(request, request_data, contracts, course_provider_model)
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': message}}, 'publish request-response of ' + action + ' from provider ' + request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response({'message': message}, status=HTTP_200_OK)
 
         response, errors = j1_publish(request, request_data, contracts, course_provider_model)
 
-        log.store_logging_data(request, {'message': 'action performed successfully'}, 'j1_publish', 'response', status_code=HTTP_201_CREATED)
+        log.store_logging_data(request, {'payload': payload, 'response': {'message': 'action performed successfully'}}, 'publish request-response of ' + action + ' from provider ' + request.course_provider.name, status_code=HTTP_201_CREATED, erp=erp)
         # return Response({'message': 'action performed successfully', 'errors': errors}, status=HTTP_201_CREATED)
         return Response({'message': 'action performed successfully'}, status=HTTP_201_CREATED)
 
@@ -89,9 +95,10 @@ def publish(request):
         generic_task_enqueue('create.publish', str(publish_job.id))
         response_data = {'message': 'successfully created a job', 'job_id': str(publish_job.id)}
 
-        log.store_logging_data(request, response_data, 'hir_publish', 'response', status_code=HTTP_200_OK)
+        log.store_logging_data(request, {'payload': payload, 'response': response_data}, 'publish request-response of ' + action + ' from ERP', status_code=HTTP_200_OK, erp=erp)
         return Response(response_data, status=HTTP_200_OK)
 
+    log.store_logging_data(request, {'payload': payload, 'response': {'message': 'invalid action name'}}, 'publish request-response of ' + action + ' from ERP', status_code=HTTP_200_OK, erp=erp)
     return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
 
 

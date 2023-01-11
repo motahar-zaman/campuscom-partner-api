@@ -7,7 +7,7 @@ from rest_framework import viewsets
 from datetime import datetime
 from django_scopes import scopes_disabled
 from rest_framework.decorators import permission_classes
-
+from api_logging import ApiLogging
 from rest_framework.status import (
     HTTP_200_OK,
 )
@@ -18,6 +18,7 @@ from rest_framework.status import (
 class NotificationsViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'head',]
     model = Notification
+    log = ApiLogging()
 
 
     def get_queryset(self):
@@ -39,8 +40,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 try:
                     cart = Cart.objects.get(pk=notification.data['id'])
                 except Cart.DoesNotExist:
-                    return Response({'data': data, 'message': "No details available for this order"},
-                                    status=HTTP_200_OK)
+                    response = {'data': data, 'message': "No details available for this order"}
+                    self.log.store_logging_data(request, {'request': kwargs, 'response': response},
+                                                'notification retrieve request-response from provider ' +
+                                                request.course_provider.name, status_code=HTTP_200_OK)
+                    return Response(response, status=HTTP_200_OK)
                 else:
                     data['details'] = format_notification_response(cart)
 
@@ -48,12 +52,18 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 try:
                     payment = Payment.objects.get(pk=notification.data['id'])
                 except Payment.DoesNotExist:
-                    return Response({'data': data, 'message': "No details available for this payment"},
-                                    status=HTTP_200_OK)
+                    response = {'data': data, 'message': "No details available for this payment"}
+                    self.log.store_logging_data(request, {'request': kwargs, 'response': response},
+                                                'notification retrieve request-response from provider ' +
+                                                request.course_provider.name, status_code=HTTP_200_OK)
+                    return Response(response, status=HTTP_200_OK)
                 else:
                     serializer = PaymentSerializer(payment)
                     data['details'] = serializer.data
 
+        self.log.store_logging_data(request, {'request': kwargs, 'response': data},
+                                    'notification retrieve request-response from provider ' +
+                                    request.course_provider.name, status_code=HTTP_200_OK)
         return Response(data, status=HTTP_200_OK)
 
     def list(self, request, *args, **kwargs):
@@ -72,7 +82,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         elif status:
             pass
         else:
-            return Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
+            response = {'message': 'Parameter missing of from_date, to_date, status'}
+            self.log.store_logging_data(request, {'request': request.GET, 'response': response},
+                                        'notification list request-response from provider ' +
+                                        request.course_provider.name, status_code=HTTP_200_OK)
+            return Response(response, status=HTTP_200_OK)
 
         # filter by course_provider to ensure notifications are for that course_provider's courses
         query_params.appendlist('course_provider', request.course_provider)
@@ -92,4 +106,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             'data': notification_serializer.data
         }
 
+        self.log.store_logging_data(request, {'request': request.GET, 'response': response},
+                                    'notification list request-response from provider ' + request.course_provider.name,
+                                    status_code=HTTP_200_OK)
         return Response(response, status=HTTP_200_OK)

@@ -8,6 +8,7 @@ from campuslibs.loggers.mongo import save_to_mongo
 from campuslibs.enrollment.common import Common
 from .utils import payment_transaction
 from django.utils import timezone
+from api_logging import ApiLogging
 
 
 def handle_enrollment_event(payload, cart, course_provider):
@@ -203,21 +204,33 @@ def handle_student_event(payload, cart, course_provider):
 @api_view(['POST'])
 @permission_classes([HasCourseProviderAPIKey])
 def webhooks(request):
+    log = ApiLogging()
     save_to_mongo(data=request.data.copy(), collection='j1:webhooks')
     try:
         event_type = request.data['event_type']
     except KeyError:
+        log.store_logging_data(request, {'payload': request.data.copy(), 'response': {'message': 'event type must be provided'}},
+                               'j1_push request-response from provider ' + request.course_provider.name,
+                               status_code=HTTP_200_OK)
         return Response({'message': 'event type must be provided'}, status=HTTP_200_OK)
 
     try:
         cart_id = request.data['order_id']
     except KeyError:
+        log.store_logging_data(request,
+                               {'payload': request.data.copy(), 'response': {'message': 'order_id must be provided'}},
+                               'j1_push request-response from provider ' + request.course_provider.name,
+                               status_code=HTTP_200_OK)
         return Response({'message': 'order_id must be provided'}, status=HTTP_200_OK)
 
     with scopes_disabled():
         try:
             cart = Cart.objects.get(order_ref=cart_id)
         except Cart.DoesNotExist:
+            log.store_logging_data(request, {'payload': request.data.copy(),
+                                             'response': {'message': 'invalid order_id'}},
+                                   'j1_push request-response from provider ' + request.course_provider.name,
+                                   status_code=HTTP_200_OK)
             return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
         else:
             if cart.enrollment_request is None:
@@ -228,6 +241,9 @@ def webhooks(request):
     except KeyError:
         cart.enrollment_request['enrollment_notification_response'] = {'message': 'payload must be provided'}
         cart.save()
+        log.store_logging_data(request, {'payload': request.data.copy(), 'response': {'message': 'payload must be provided'}},
+                               'j1_push request-response from provider ' + request.course_provider.name,
+                               status_code=HTTP_200_OK)
         return Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
     else:
         cart.enrollment_request['enrollment_notification'] = payload
@@ -240,8 +256,15 @@ def webhooks(request):
     else:
         cart.enrollment_request['enrollment_notification_response'] = {'message': 'unrecognized event type'}
         cart.save()
+        log.store_logging_data(request,
+                               {'payload': request.data.copy(), 'response': {'message': 'unrecognized event type'}},
+                               'j1_push request-response from provider ' + request.course_provider.name,
+                               status_code=HTTP_200_OK)
         return Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
 
     cart.enrollment_request['enrollment_notification_response'] = {'message': 'ok'}
     cart.save()
+    log.store_logging_data(request, {'payload': request.data.copy(), 'response': {'message': 'ok'}},
+                           'j1_push request-response from provider ' + request.course_provider.name,
+                           status_code=HTTP_200_OK)
     return Response({'message': 'ok'}, status=HTTP_200_OK)

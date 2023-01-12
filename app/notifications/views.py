@@ -35,6 +35,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         notification = self.get_object()
         data = {'status': notification.status, 'time': notification.creation_time.strftime("%m/%d/%Y, %H:%M:%S")}
 
+        try:
+            erp = request.course_provider.configuration.get('erp', '')
+        except:
+            erp = ''
+
         with scopes_disabled():
             if notification.data['type'] == 'order':
                 try:
@@ -43,7 +48,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     response = {'data': data, 'message': "No details available for this order"}
                     self.log.store_logging_data(request, {'request': kwargs, 'response': response},
                                                 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK)
+                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
                     return Response(response, status=HTTP_200_OK)
                 else:
                     data['details'] = format_notification_response(cart)
@@ -55,7 +60,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     response = {'data': data, 'message': "No details available for this payment"}
                     self.log.store_logging_data(request, {'request': kwargs, 'response': response},
                                                 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK)
+                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
                     return Response(response, status=HTTP_200_OK)
                 else:
                     serializer = PaymentSerializer(payment)
@@ -63,7 +68,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
         self.log.store_logging_data(request, {'request': kwargs, 'response': data},
                                     'notification retrieve request-response from provider ' +
-                                    request.course_provider.name, status_code=HTTP_200_OK)
+                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
         return Response(data, status=HTTP_200_OK)
 
     def list(self, request, *args, **kwargs):
@@ -71,6 +76,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         from_date = request.GET.get('from_date', None)
         to_date = request.GET.get('to_date', None)
         status = request.GET.get('status', None)
+
+        try:
+            erp = request.course_provider.configuration.get('erp', '')
+        except:
+            erp = ''
 
         if from_date:
             query_params.pop('from_date')
@@ -85,7 +95,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             response = {'message': 'Parameter missing of from_date, to_date, status'}
             self.log.store_logging_data(request, {'request': request.GET, 'response': response},
                                         'notification list request-response from provider ' +
-                                        request.course_provider.name, status_code=HTTP_200_OK)
+                                        request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response(response, status=HTTP_200_OK)
 
         # filter by course_provider to ensure notifications are for that course_provider's courses
@@ -108,5 +118,5 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
         self.log.store_logging_data(request, {'request': request.GET, 'response': response},
                                     'notification list request-response from provider ' + request.course_provider.name,
-                                    status_code=HTTP_200_OK)
+                                    status_code=HTTP_200_OK, erp=erp)
         return Response(response, status=HTTP_200_OK)

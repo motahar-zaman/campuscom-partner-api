@@ -31,6 +31,10 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         log = ApiLogging()
+        try:
+            erp = request.course_provider.configuration.get('erp', '')
+        except:
+            erp = ''
 
         status, data, message = self.refund.validate_refund_data(request)
         if not status:
@@ -40,7 +44,7 @@ class RefundViewSet(viewsets.ModelViewSet):
             }
             log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
                                    'refund request-response from provider ' + request.course_provider.name,
-                                   status_code=HTTP_400_BAD_REQUEST)
+                                   status_code=HTTP_400_BAD_REQUEST, erp=erp)
             return Response(
                 response,
                 status=HTTP_400_BAD_REQUEST,
@@ -50,13 +54,13 @@ class RefundViewSet(viewsets.ModelViewSet):
         if status:
             log.store_logging_data(request, {'payload': request.data.copy(), 'response':
                 {'message': 'refund request placed successfully'}}, 'refund request-response from provider ' +
-                                   request.course_provider.name, status_code=HTTP_200_OK)
+                                   request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response({'message': 'refund request placed successfully'}, status=HTTP_200_OK)
 
         else:
             log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
                                    'refund request-response from provider ' + request.course_provider.name,
-                                   status_code=HTTP_400_BAD_REQUEST)
+                                   status_code=HTTP_400_BAD_REQUEST, erp=erp)
             try:
                 errors = response['transactionResponse']['errors']
             except Exception:

@@ -38,10 +38,10 @@ def publish(request):
     log = ApiLogging()
 
     action = payload['action']
-    if action == 'j1-course':
-        erp = 'j1'
-    else:
-        erp = 'hir'
+    try:
+        erp = request.course_provider.configuration.get('erp', '')
+    except:
+        erp = ''
     try:
         request_data = payload['data']
     except KeyError:
@@ -148,9 +148,13 @@ def job_status(request, *args, **kwargs):
             'records': log_data
         }
     }
+    try:
+        erp = request.course_provider.configuration.get('erp', '')
+    except:
+        erp = ''
     log.store_logging_data(request, {'request': kwargs, 'response': formatted_data},
                            'request-response of job status from provider ' + request.course_provider.name,
-                           status_code=HTTP_200_OK)
+                           status_code=HTTP_200_OK, erp=erp)
     return Response({'data': formatted_data}, status=HTTP_200_OK)
 
 
@@ -220,12 +224,17 @@ def checkout_info(request):
     payload = request.data.copy()
     login_user_serializer = CheckoutLoginUserModelSerializer(data={'payload': payload, 'status': 'pending', 'expiration_time': expiration_time})
 
+    try:
+        erp = request.course_provider.configuration.get('erp', '')
+    except:
+        erp = ''
+
     if login_user_serializer.is_valid():
         login_user = login_user_serializer.save()
     else:
         log.store_logging_data(request, {'payload': payload, 'response': {'message': login_user_serializer.errors}},
                                'request-response of checkout-info from provider ' + request.course_provider.name,
-                               status_code=HTTP_400_BAD_REQUEST)
+                               status_code=HTTP_400_BAD_REQUEST, erp=erp)
         return Response({'message': login_user_serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
     token = md5(str(login_user.id).encode()).hexdigest()
@@ -236,7 +245,7 @@ def checkout_info(request):
     response = {'tid': token, 'message': "Checkout Information Received"}
     log.store_logging_data(request, {'payload': payload, 'response': response},
                            'request-response of checkout-info from provider ' + request.course_provider.name,
-                           status_code=HTTP_200_OK)
+                           status_code=HTTP_200_OK, erp=erp)
     return Response(response, status=HTTP_200_OK)
 
 

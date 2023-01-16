@@ -673,7 +673,7 @@ def validate_j1_payload(data):
         if not data.get(field, None):
             if message:
                 message = message + '. '
-            message = message + "'" + field + "' is required for course (" + data.get('catalog_appid', None) + ")"
+            message = message + "'" + field + "' is required for course (" + data.get('catalog_appid', '') + ")"
             valid = False
 
     for section in data.get('sections', []):
@@ -681,19 +681,19 @@ def validate_j1_payload(data):
             if not section.get(field, None):
                 if message:
                     message = message + '. '
-                message = message + "'" + field + "' is required for section (" + section.get('section_appid', None) + ")"
+                message = message + "'" + field + "' is required for section (" + section.get('section_appid', '') + ")"
                 valid = False
 
         for instructor in section.get('instructors', []):
             if not instructor.get('section_instructor_appid', None):
                 if message:
                     message = message + '. '
-                message = message + "'section_instructor_appid' is required for instructor (" + instructor.get('section_instructor_appid', None) + ")"
+                message = message + "'section_instructor_appid' is required for instructor (" + instructor.get('section_instructor_appid', '') + ")"
                 valid = False
-            if not instructor.get('last_name', None) and not instructor.get('first_name', None) and not instructor.get('middle_name', None):
+            if not instructor.get('last_name', None) and not instructor.get('first_name', None) and not instructor.get('middle_name', ''):
                 if message:
                     message = message + '. '
-                message = message + "'last_name' or 'first_name' or 'middle_name' is required for instructor (" + instructor.get('section_instructor_appid', None) + ")"
+                message = message + "'last_name' or 'first_name' or 'middle_name' is required for instructor (" + instructor.get('section_instructor_appid', '') + ")"
                 valid = False
 
     return valid, message

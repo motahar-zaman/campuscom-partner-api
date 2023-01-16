@@ -672,7 +672,7 @@ def validate_j1_payload(data):
     for field in required_fields_course:
         if not data.get(field, None):
             if message:
-                message = message + ', '
+                message = message + '. '
             message = message + "'" + field + "' is required for course (" + data.get('catalog_appid', None) + ")"
             valid = False
 
@@ -680,7 +680,7 @@ def validate_j1_payload(data):
         for field in required_fields_section:
             if not section.get(field, None):
                 if message:
-                    message = message + ', '
+                    message = message + '. '
                 message = message + "'" + field + "' is required for section (" + section.get('section_appid', None) + ")"
                 valid = False
 

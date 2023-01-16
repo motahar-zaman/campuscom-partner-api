@@ -14,7 +14,7 @@ from rest_framework.status import (
 from rest_framework.decorators import api_view, permission_classes
 from publish.permissions import HasCourseProviderAPIKey
 
-from .helpers import transale_j1_data, j1_publish, deactivate_course
+from .helpers import transale_j1_data, j1_publish, deactivate_course, validate_j1_payload
 
 from hashlib import md5
 
@@ -69,7 +69,14 @@ def publish(request):
         return Response({'message': 'course provider model not found'})
 
     if action == 'j1-course':
-        # the case of j1: their payload has a key entity_action. depending on it's value, stuff will happen.
+        valid, message = validate_j1_payload(request_data)
+        if not valid:
+            log.store_logging_data(request, {'payload': payload, 'response': {'message': message}},
+                                   'publish request-response of ' + action + ' from provider ' +
+                                   request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+            return Response({'message': message}, status=HTTP_400_BAD_REQUEST)
+
+        # the case of j1: their payload has a key entity_action. depending on its value, stuff will happen.
         # but for others, this key may not be present.
         request_data = transale_j1_data(request_data)
         if payload.get('entity_action', '').strip().lower() == 'd':

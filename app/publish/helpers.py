@@ -661,3 +661,27 @@ def upsert_j1_data_into_mongo(data):
         course_model.save()
         course_id = course_model.id
     return course_id, errors
+
+
+def validate_j1_payload(data):
+    message = ''
+    valid = True
+    required_fields_course = ['catalog_appid', 'crs_title', 'formatted_crs_cde', 'catalog_text']
+    required_fields_section = ['section_appid', 'catalog_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'final_enrollment_dte']
+
+    for field in required_fields_course:
+        if not data.get(field, None):
+            if message:
+                message = message + ', '
+            message = message + "'" + field + "' is required for course (" + data.get('catalog_appid', None) + ")"
+            valid = False
+
+    for section in data.get('sections', []):
+        for field in required_fields_section:
+            if not section.get(field, None):
+                if message:
+                    message = message + ', '
+                message = message + "'" + field + "' is required for section (" + section.get('section_appid', None) + ")"
+                valid = False
+
+    return valid, message

@@ -62,11 +62,6 @@ def prepare_section_mongo(data, course_provider_model):
     section_data = []
     for item in data:
         try:
-            num_seats = int(item.get('num_seats', 0))
-        except ValueError:
-            num_seats = 0
-
-        try:
             course_fee = float(item.get('course_fee', 0.00))
         except ValueError:
             course_fee = 0.00
@@ -97,7 +92,7 @@ def prepare_section_mongo(data, course_provider_model):
             'details_url': item.get('details_url'),
             'start_date': get_datetime_obj(item.get('start_date')),
             'end_date': get_datetime_obj(item.get('end_date')),
-            'num_seats': num_seats,
+            'num_seats': item.get('num_seats'),
             'available_seats': item.get('available_seats'),
             'is_active': item.get('is_active'),
             'execution_mode': item.get('execution_mode'),
@@ -273,6 +268,12 @@ def translate_data(data, mapping):
 
             elif key == 'detail_bio':
                 item_data[key] = item.get(value, None)
+
+            elif key == 'num_seats':
+                item_data[key] = item.get(value, 0)
+
+            elif key == 'available_seats':
+                item_data[key] = item.get(value, 0)
 
             else:
                 try:
@@ -667,7 +668,7 @@ def validate_j1_payload(data):
     message = ''
     valid = True
     required_fields_course = ['catalog_appid', 'crs_title', 'formatted_crs_cde', 'catalog_text']
-    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'final_enrollment_dte']
+    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'final_enrollment_dte', 'open_seats']
 
     for field in required_fields_course:
         if not data.get(field, None):

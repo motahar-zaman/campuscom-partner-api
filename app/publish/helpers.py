@@ -678,6 +678,12 @@ def validate_j1_payload(data):
             valid = False
 
     for section in data.get('sections', []):
+        seat = section.get('open_seats', None)
+        if seat and int(seat) < 0:
+            if message:
+                message = message + '. '
+            message = message + "'open_seats' must be a positive number (" + section.get('section_appid', '') + ")"
+            valid = False
         for field in required_fields_section:
             if not section.get(field, None):
                 if message:

@@ -421,30 +421,29 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                 try:
                     store_course_section = StoreCourseSection.objects.get(store_course=store_course, section=section)
                 except StoreCourseSection.DoesNotExist:
-                    if section.registration_deadline:
-                        # create product
-                        product = Product.objects.create(
-                            store=contract.store,
-                            external_id=course_model_data['external_id'],
-                            product_type='section',
-                            title=course.title + ' (' + section.name + ')',
-                            tax_code='ST080031',
-                            fee=section.fee,
-                            minimum_fee=section.fee,
-                            total_quantity=section_data['seat_capacity'],
-                            available_quantity=section_data['available_seat'],
-                        )
+                    # create product
+                    product = Product.objects.create(
+                        store=contract.store,
+                        external_id=course_model_data['external_id'],
+                        product_type='section',
+                        title=course.title + ' (' + section.name + ')',
+                        tax_code='ST080031',
+                        fee=section.fee,
+                        minimum_fee=section.fee,
+                        total_quantity=section_data['seat_capacity'],
+                        available_quantity=section_data['available_seat'],
+                    )
 
-                        store_course_section, created = StoreCourseSection.objects.get_or_create(
-                            store_course=store_course,
-                            section=section,
-                            is_published=False,
-                            product=product
-                        )
+                    store_course_section, created = StoreCourseSection.objects.get_or_create(
+                        store_course=store_course,
+                        section=section,
+                        is_published=False,
+                        product=product
+                    )
 
-                        if not created:
-                            store_course_section.active_status = True
-                            store_course_section.save()
+                    if not created:
+                        store_course_section.active_status = True
+                        store_course_section.save()
                 else:
                     product = store_course_section.product
                     product.store = contract.store

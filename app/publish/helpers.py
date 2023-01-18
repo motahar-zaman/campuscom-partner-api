@@ -106,7 +106,7 @@ def prepare_section_mongo(data, course_provider_model):
             'schedules': get_schedules(item.get('schedules', []))
         })
         if item.get('registration_deadline', None):
-            section_data[indx]['registration_deadline'] = item.get('registration_deadline')
+            section_data[indx]['registration_deadline'] = get_datetime_obj(item.get('registration_deadline'))
     return section_data
 
 

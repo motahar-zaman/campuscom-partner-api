@@ -60,7 +60,7 @@ def get_instructors(data, course_provider_model):
 
 def prepare_section_mongo(data, course_provider_model):
     section_data = []
-    for item in data:
+    for indx, item in enumerate(data):
         try:
             course_fee = float(item.get('course_fee', 0.00))
         except ValueError:
@@ -97,7 +97,6 @@ def prepare_section_mongo(data, course_provider_model):
             'is_active': item.get('is_active'),
             'execution_mode': item.get('execution_mode'),
             'execution_site': get_execution_site(item.get('execution_site'), course_provider_model),
-            'registration_deadline': get_datetime_obj(item.get('registration_deadline')),
             'instructors': get_instructors(item.get('instructors', []), course_provider_model),
             'course_fee': {'amount': course_fee, 'currency': 'usd'},
             'credit_hours': credit_hours,
@@ -106,6 +105,8 @@ def prepare_section_mongo(data, course_provider_model):
             'load_hours': load_hours,
             'schedules': get_schedules(item.get('schedules', []))
         })
+        if item.get('registration_deadline', None):
+            section_data[indx]['registration_deadline'] = item.get('registration_deadline')
     return section_data
 
 
@@ -420,29 +421,30 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                 try:
                     store_course_section = StoreCourseSection.objects.get(store_course=store_course, section=section)
                 except StoreCourseSection.DoesNotExist:
-                    # create product
-                    product = Product.objects.create(
-                        store=contract.store,
-                        external_id=course_model_data['external_id'],
-                        product_type='section',
-                        title=course.title + ' (' + section.name + ')',
-                        tax_code='ST080031',
-                        fee=section.fee,
-                        minimum_fee=section.fee,
-                        total_quantity=section_data['seat_capacity'],
-                        available_quantity=section_data['available_seat'],
-                    )
+                    if section.registration_deadline:
+                        # create product
+                        product = Product.objects.create(
+                            store=contract.store,
+                            external_id=course_model_data['external_id'],
+                            product_type='section',
+                            title=course.title + ' (' + section.name + ')',
+                            tax_code='ST080031',
+                            fee=section.fee,
+                            minimum_fee=section.fee,
+                            total_quantity=section_data['seat_capacity'],
+                            available_quantity=section_data['available_seat'],
+                        )
 
-                    store_course_section, created = StoreCourseSection.objects.get_or_create(
-                        store_course=store_course,
-                        section=section,
-                        is_published=False,
-                        product=product
-                    )
+                        store_course_section, created = StoreCourseSection.objects.get_or_create(
+                            store_course=store_course,
+                            section=section,
+                            is_published=False,
+                            product=product
+                        )
 
-                    if not created:
-                        store_course_section.active_status = True
-                        store_course_section.save()
+                        if not created:
+                            store_course_section.active_status = True
+                            store_course_section.save()
                 else:
                     product = store_course_section.product
                     product.store = contract.store
@@ -668,7 +670,7 @@ def validate_j1_payload(data):
     message = ''
     valid = True
     required_fields_course = ['catalog_appid', 'crs_title', 'formatted_crs_cde', 'catalog_text']
-    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'final_enrollment_dte', 'open_seats']
+    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'open_seats']
 
     for field in required_fields_course:
         if not data.get(field, None):

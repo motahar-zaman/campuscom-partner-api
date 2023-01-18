@@ -60,7 +60,7 @@ def get_instructors(data, course_provider_model):
 
 def prepare_section_mongo(data, course_provider_model):
     section_data = []
-    for item in data:
+    for indx, item in enumerate(data):
         try:
             course_fee = float(item.get('course_fee', 0.00))
         except ValueError:
@@ -97,7 +97,6 @@ def prepare_section_mongo(data, course_provider_model):
             'is_active': item.get('is_active'),
             'execution_mode': item.get('execution_mode'),
             'execution_site': get_execution_site(item.get('execution_site'), course_provider_model),
-            'registration_deadline': get_datetime_obj(item.get('registration_deadline')),
             'instructors': get_instructors(item.get('instructors', []), course_provider_model),
             'course_fee': {'amount': course_fee, 'currency': 'usd'},
             'credit_hours': credit_hours,
@@ -106,6 +105,8 @@ def prepare_section_mongo(data, course_provider_model):
             'load_hours': load_hours,
             'schedules': get_schedules(item.get('schedules', []))
         })
+        if item.get('registration_deadline', None):
+            section_data[indx]['registration_deadline'] = item.get('registration_deadline')
     return section_data
 
 
@@ -668,7 +669,7 @@ def validate_j1_payload(data):
     message = ''
     valid = True
     required_fields_course = ['catalog_appid', 'crs_title', 'formatted_crs_cde', 'catalog_text']
-    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'final_enrollment_dte', 'open_seats']
+    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'open_seats']
 
     for field in required_fields_course:
         if not data.get(field, None):

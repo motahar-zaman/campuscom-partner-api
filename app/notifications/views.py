@@ -45,7 +45,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 'body': kwargs
             },
             'response': {
-                'headers': request.headers,
+                'headers': {},
                 'body': {}
             }
         }
@@ -55,11 +55,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 try:
                     cart = Cart.objects.get(pk=notification.data['id'])
                 except Cart.DoesNotExist:
-                    response = {'data': data, 'message': "No details available for this order"}
-                    log_data['response']['body'] = response
-                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-                    return Response(response, status=HTTP_200_OK)
+                    response = Response({'data': data, 'message': "No details available for this order"}, status=HTTP_200_OK)
+                    log_data['response']['body'] = response.data
+                    log_data['response']['headers'] = response.headers
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
+                    return response
                 else:
                     data['details'] = format_notification_response(cart)
 
@@ -67,19 +67,21 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 try:
                     payment = Payment.objects.get(pk=notification.data['id'])
                 except Payment.DoesNotExist:
-                    response = {'data': data, 'message': "No details available for this payment"}
-                    log_data['response']['body'] = response
-                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-                    return Response(response, status=HTTP_200_OK)
+                    response = Response({'data': data, 'message': "No details available for this payment"}, status=HTTP_200_OK)
+                    log_data['response']['body'] = response.data
+                    log_data['response']['headers'] = response.headers
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
+                    return response
                 else:
                     serializer = PaymentSerializer(payment)
                     data['details'] = serializer.data
 
-        log_data['response']['body'] = data
-        self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response(data, status=HTTP_200_OK)
+        response = Response(data, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
+
+        return response
 
     def list(self, request, *args, **kwargs):
         query_params = request.GET.copy()
@@ -97,7 +99,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                 'body': request.GET
             },
             'response': {
-                'headers': request.headers,
+                'headers': {},
                 'body': {}
             }
         }
@@ -112,11 +114,11 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         elif status:
             pass
         else:
-            response = {'message': 'Parameter missing of from_date, to_date, status'}
-            log_data['response']['body'] = response
-            self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
-                                        request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-            return Response(response, status=HTTP_200_OK)
+            response = Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
+            log_data['response']['body'] = response.data
+            log_data['response']['headers'] = response.headers
+            self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
+            return response
 
         # filter by course_provider to ensure notifications are for that course_provider's courses
         query_params.appendlist('course_provider', request.course_provider)
@@ -124,19 +126,23 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         try:
             notifications = Notification.objects.filter(**query_params.dict())
         except Notification.DoesNotExist:
-            return Response({'message': 'No notification found'}, status=HTTP_200_OK)
+            response = Response({'message': 'No notification found'}, status=HTTP_200_OK)
+            log_data['response']['body'] = response.data
+            log_data['response']['headers'] = response.headers
+            self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
+            return response
 
         notification_serializer = NotificationSerializer(notifications, many=True)
 
-        response = {
+        response = Response({
             'total': notifications.count(),
             'successful': notifications.filter(status='successful').count(),
             'failed': notifications.filter(status='failed').count(),
             'pending': notifications.filter(status='pending').count(),
             'data': notification_serializer.data
-        }
+        }, status=HTTP_200_OK)
 
-        log_data['response']['body'] = response
-        self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
-                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response(response, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
+        return response

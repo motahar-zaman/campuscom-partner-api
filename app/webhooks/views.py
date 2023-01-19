@@ -211,7 +211,7 @@ def webhooks(request):
             'body': request.data.copy()
         },
         'response': {
-            'headers': request.headers,
+            'headers': {},
             'body': {}
         }
     }
@@ -223,27 +223,30 @@ def webhooks(request):
     try:
         event_type = request.data['event_type']
     except KeyError:
-        log_data['response']['body']['message'] = 'event type must be provided'
-        log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response({'message': 'event type must be provided'}, status=HTTP_200_OK)
+        response = Response({'message': 'event type must be provided'}, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+        return response
 
     try:
         cart_id = request.data['order_id']
     except KeyError:
-        log_data['response']['body']['message'] = 'order_id must be provided'
-        log.store_logging_data(request,log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response({'message': 'order_id must be provided'}, status=HTTP_200_OK)
+        response = Response({'message': 'order_id must be provided'}, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        log.store_logging_data(request,log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+        return response
 
     with scopes_disabled():
         try:
             cart = Cart.objects.get(order_ref=cart_id)
         except Cart.DoesNotExist:
-            log_data['response']['body']['message'] = 'invalid order_id'
-            log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                                   request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-            return Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
+            response = Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
+            log_data['response']['body'] = response.data
+            log_data['response']['headers'] = response.headers
+            log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+            return response
         else:
             if cart.enrollment_request is None:
                 cart.enrollment_request = {}
@@ -253,10 +256,12 @@ def webhooks(request):
     except KeyError:
         cart.enrollment_request['enrollment_notification_response'] = {'message': 'payload must be provided'}
         cart.save()
-        log_data['response']['body']['message'] = 'payload must be provided'
-        log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
+
+        response = Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+        return response
     else:
         cart.enrollment_request['enrollment_notification'] = payload
         cart.save()
@@ -268,14 +273,18 @@ def webhooks(request):
     else:
         cart.enrollment_request['enrollment_notification_response'] = {'message': 'unrecognized event type'}
         cart.save()
-        log_data['response']['body']['message'] = 'unrecognized event type'
-        log.store_logging_data(request,log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
-        return Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
+
+        response = Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
+        log_data['response']['body'] = response.data
+        log_data['response']['headers'] = response.headers
+        log.store_logging_data(request,log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+        return response
 
     cart.enrollment_request['enrollment_notification_response'] = {'message': 'ok'}
     cart.save()
-    log_data['response']['body']['message'] = 'ok'
-    log.store_logging_data(request, log_data, 'j1_push request-response from provider ' + request.course_provider.name,
-                           status_code=HTTP_200_OK, erp=erp)
-    return Response({'message': 'ok'}, status=HTTP_200_OK)
+
+    response = Response({'message': 'ok'}, status=HTTP_200_OK)
+    log_data['response']['body'] = response.data
+    log_data['response']['headers'] = response.headers
+    log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
+    return response

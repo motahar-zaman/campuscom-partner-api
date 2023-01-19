@@ -211,7 +211,7 @@ def webhooks(request):
             'body': request.data.copy()
         },
         'response': {
-            'headers': request.headers,
+            'headers': {},
             'body': {}
         }
     }
@@ -226,8 +226,7 @@ def webhooks(request):
         response = Response({'message': 'event type must be provided'}, status=HTTP_200_OK)
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
         return response
 
     try:
@@ -236,8 +235,7 @@ def webhooks(request):
         response = Response({'message': 'order_id must be provided'}, status=HTTP_200_OK)
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        log.store_logging_data(request,log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request,log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
         return response
 
     with scopes_disabled():
@@ -247,8 +245,7 @@ def webhooks(request):
             response = Response({'message': 'invalid order_id'}, status=HTTP_200_OK)
             log_data['response']['body'] = response.data
             log_data['response']['headers'] = response.headers
-            log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                                   request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+            log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
             return response
         else:
             if cart.enrollment_request is None:
@@ -263,8 +260,7 @@ def webhooks(request):
         response = Response({'message': 'payload must be provided'}, status=HTTP_200_OK)
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        log.store_logging_data(request, log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
         return response
     else:
         cart.enrollment_request['enrollment_notification'] = payload
@@ -281,8 +277,7 @@ def webhooks(request):
         response = Response({'message': 'unrecognized event type'}, status=HTTP_200_OK)
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        log.store_logging_data(request,log_data, 'j1_push request-response from provider ' +
-                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request,log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
         return response
 
     cart.enrollment_request['enrollment_notification_response'] = {'message': 'ok'}
@@ -291,6 +286,5 @@ def webhooks(request):
     response = Response({'message': 'ok'}, status=HTTP_200_OK)
     log_data['response']['body'] = response.data
     log_data['response']['headers'] = response.headers
-    log.store_logging_data(request, log_data, 'j1_push request-response from provider ' + request.course_provider.name,
-                           status_code=HTTP_200_OK, erp=erp)
+    log.store_logging_data(request, log_data, 'j1_push request-response', status_code=HTTP_200_OK, erp=erp)
     return response

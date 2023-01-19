@@ -58,8 +58,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     response = Response({'data': data, 'message': "No details available for this order"}, status=HTTP_200_OK)
                     log_data['response']['body'] = response.data
                     log_data['response']['headers'] = response.headers
-                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
                     return response
                 else:
                     data['details'] = format_notification_response(cart)
@@ -71,8 +70,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     response = Response({'data': data, 'message': "No details available for this payment"}, status=HTTP_200_OK)
                     log_data['response']['body'] = response.data
                     log_data['response']['headers'] = response.headers
-                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                                request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
                     return response
                 else:
                     serializer = PaymentSerializer(payment)
@@ -81,8 +79,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
         response = Response(data, status=HTTP_200_OK)
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
-                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        self.log.store_logging_data(request, log_data, 'notification retrieve request-response', status_code=HTTP_200_OK, erp=erp)
 
         return response
 
@@ -120,8 +117,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             response = Response({'message': 'Parameter missing of from_date, to_date, status'}, status=HTTP_200_OK)
             log_data['response']['body'] = response.data
             log_data['response']['headers'] = response.headers
-            self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
-                                        request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+            self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
             return response
 
         # filter by course_provider to ensure notifications are for that course_provider's courses
@@ -133,8 +129,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             response = Response({'message': 'No notification found'}, status=HTTP_200_OK)
             log_data['response']['body'] = response.data
             log_data['response']['headers'] = response.headers
-            self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
-                                        request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+            self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
             return response
 
         notification_serializer = NotificationSerializer(notifications, many=True)
@@ -149,6 +144,5 @@ class NotificationsViewSet(viewsets.ModelViewSet):
 
         log_data['response']['body'] = response.data
         log_data['response']['headers'] = response.headers
-        self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
-                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        self.log.store_logging_data(request, log_data, 'notification list request-response', status_code=HTTP_200_OK, erp=erp)
         return response

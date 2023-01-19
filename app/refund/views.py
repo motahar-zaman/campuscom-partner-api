@@ -41,7 +41,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                 'body': request.data.copy()
             },
             'response': {
-                'headers': request.headers,
+                'headers': {},
                 'body': {}
             }
         }
@@ -55,8 +55,7 @@ class RefundViewSet(viewsets.ModelViewSet):
 
             log_data['response']['body'] = response.data
             log_data['response']['headers'] = response.headers
-            log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                   request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+            log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_400_BAD_REQUEST, erp=erp)
             return response
 
         status, refund_response = self.refund.refund(request, data, requested_by='partner')
@@ -64,8 +63,7 @@ class RefundViewSet(viewsets.ModelViewSet):
             response = Response({'message': 'refund request placed successfully'}, status=HTTP_200_OK)
             log_data['response']['body'] = response.data
             log_data['response']['headers'] = response.headers
-            log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                   request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+            log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_200_OK, erp=erp)
             return response
 
         else:
@@ -83,8 +81,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                 )
                 log_data['response']['body'] = response.data
                 log_data['response']['headers'] = response.headers
-                log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                       request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+                log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_400_BAD_REQUEST, erp=erp)
                 return response
             else:
                 for error in errors:
@@ -100,8 +97,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                         )
                         log_data['response']['body'] = response.data
                         log_data['response']['headers'] = response.headers
-                        log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                               request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+                        log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_400_BAD_REQUEST, erp=erp)
                         return response
                     elif error['errorCode'] == '11':
                         response =  Response(
@@ -115,8 +111,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                         )
                         log_data['response']['body'] = response.data
                         log_data['response']['headers'] = response.headers
-                        log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                               request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+                        log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_400_BAD_REQUEST, erp=erp)
                         return response
 
                 else:
@@ -131,6 +126,5 @@ class RefundViewSet(viewsets.ModelViewSet):
                     )
                     log_data['response']['body'] = response.data
                     log_data['response']['headers'] = response.headers
-                    log.store_logging_data(request, log_data, 'refund request-response from provider ' +
-                                           request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
+                    log.store_logging_data(request, log_data, 'refund request-response', status_code=HTTP_400_BAD_REQUEST, erp=erp)
                     return response

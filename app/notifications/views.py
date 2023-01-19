@@ -39,6 +39,16 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             erp = request.course_provider.configuration.get('erp', '')
         except:
             erp = ''
+        log_data = {
+            'request': {
+                'headers': request.headers,
+                'body': kwargs
+            },
+            'response': {
+                'headers': request.headers,
+                'body': {}
+            }
+        }
 
         with scopes_disabled():
             if notification.data['type'] == 'order':
@@ -46,8 +56,8 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     cart = Cart.objects.get(pk=notification.data['id'])
                 except Cart.DoesNotExist:
                     response = {'data': data, 'message': "No details available for this order"}
-                    self.log.store_logging_data(request, {'request': kwargs, 'response': response},
-                                                'notification retrieve request-response from provider ' +
+                    log_data['response']['body'] = response
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
                                                 request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
                     return Response(response, status=HTTP_200_OK)
                 else:
@@ -58,16 +68,16 @@ class NotificationsViewSet(viewsets.ModelViewSet):
                     payment = Payment.objects.get(pk=notification.data['id'])
                 except Payment.DoesNotExist:
                     response = {'data': data, 'message': "No details available for this payment"}
-                    self.log.store_logging_data(request, {'request': kwargs, 'response': response},
-                                                'notification retrieve request-response from provider ' +
+                    log_data['response']['body'] = response
+                    self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
                                                 request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
                     return Response(response, status=HTTP_200_OK)
                 else:
                     serializer = PaymentSerializer(payment)
                     data['details'] = serializer.data
 
-        self.log.store_logging_data(request, {'request': kwargs, 'response': data},
-                                    'notification retrieve request-response from provider ' +
+        log_data['response']['body'] = data
+        self.log.store_logging_data(request, log_data, 'notification retrieve request-response from provider ' +
                                     request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
         return Response(data, status=HTTP_200_OK)
 
@@ -81,6 +91,16 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             erp = request.course_provider.configuration.get('erp', '')
         except:
             erp = ''
+        log_data = {
+            'request': {
+                'headers': request.headers,
+                'body': request.GET
+            },
+            'response': {
+                'headers': request.headers,
+                'body': {}
+            }
+        }
 
         if from_date:
             query_params.pop('from_date')
@@ -93,8 +113,8 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             pass
         else:
             response = {'message': 'Parameter missing of from_date, to_date, status'}
-            self.log.store_logging_data(request, {'request': request.GET, 'response': response},
-                                        'notification list request-response from provider ' +
+            log_data['response']['body'] = response
+            self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
                                         request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response(response, status=HTTP_200_OK)
 
@@ -116,7 +136,7 @@ class NotificationsViewSet(viewsets.ModelViewSet):
             'data': notification_serializer.data
         }
 
-        self.log.store_logging_data(request, {'request': request.GET, 'response': response},
-                                    'notification list request-response from provider ' + request.course_provider.name,
-                                    status_code=HTTP_200_OK, erp=erp)
+        log_data['response']['body'] = response
+        self.log.store_logging_data(request, log_data, 'notification list request-response from provider ' +
+                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
         return Response(response, status=HTTP_200_OK)

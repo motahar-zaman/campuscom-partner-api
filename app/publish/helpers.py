@@ -668,8 +668,8 @@ def upsert_j1_data_into_mongo(data):
 def validate_j1_payload(data):
     message = ''
     valid = True
-    required_fields_course = ['catalog_appid', 'crs_title', 'formatted_crs_cde', 'catalog_text']
-    required_fields_section = ['section_appid', 'crs_cde', 'course_fees', 'first_begin_dte', 'last_end_dte', 'open_seats']
+    required_fields_course = ['catalog_appid', 'crs_cde', 'crs_title', 'formatted_crs_cde', 'catalog_text']
+    required_fields_section = ['section_appid', 'course_fees', 'first_begin_dte', 'last_end_dte', 'open_seats']
 
     for field in required_fields_course:
         if not data.get(field, None):

@@ -35,6 +35,16 @@ class RefundViewSet(viewsets.ModelViewSet):
             erp = request.course_provider.configuration.get('erp', '')
         except:
             erp = ''
+        log_data = {
+            'request': {
+                'headers': request.headers,
+                'body': request.data.copy()
+            },
+            'response': {
+                'headers': request.headers,
+                'body': {}
+            }
+        }
 
         status, data, message = self.refund.validate_refund_data(request)
         if not status:
@@ -42,9 +52,9 @@ class RefundViewSet(viewsets.ModelViewSet):
                 "error": message,
                 "status_code": 400,
             }
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
-                                   'refund request-response from provider ' + request.course_provider.name,
-                                   status_code=HTTP_400_BAD_REQUEST, erp=erp)
+            log_data['response']['body'] = response
+            log.store_logging_data(request, log_data, 'refund request-response from provider ' +
+                                   request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
             return Response(
                 response,
                 status=HTTP_400_BAD_REQUEST,
@@ -52,15 +62,15 @@ class RefundViewSet(viewsets.ModelViewSet):
 
         status, response = self.refund.refund(request, data, requested_by='partner')
         if status:
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response':
-                {'message': 'refund request placed successfully'}}, 'refund request-response from provider ' +
+            log_data['response']['body']['message'] = 'refund request placed successfully'
+            log.store_logging_data(request, log_data, 'refund request-response from provider ' +
                                    request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
             return Response({'message': 'refund request placed successfully'}, status=HTTP_200_OK)
 
         else:
-            log.store_logging_data(request, {'payload': request.data.copy(), 'response': response},
-                                   'refund request-response from provider ' + request.course_provider.name,
-                                   status_code=HTTP_400_BAD_REQUEST, erp=erp)
+            log_data['response']['body'] = response
+            log.store_logging_data(request, log_data, 'refund request-response from provider ' +
+                                   request.course_provider.name, status_code=HTTP_400_BAD_REQUEST, erp=erp)
             try:
                 errors = response['transactionResponse']['errors']
             except Exception:

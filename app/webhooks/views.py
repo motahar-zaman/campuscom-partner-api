@@ -55,7 +55,7 @@ def handle_enrollment_event(payload, cart, course_provider):
                             'order_ref': payment.cart.order_ref
                         },
                         'created_at': timezone.now(),
-                        'summary': 'capture request of order ' + str(payment.cart.order_ref)
+                        'summary': 'capture request'
                     }
                     save_to_mongo(data, 'payment_request_response')
 
@@ -72,7 +72,7 @@ def handle_enrollment_event(payload, cart, course_provider):
                             'order_ref': payment.cart.order_ref,
                         },
                         'created_at': timezone.now(),
-                        'summary': 'capture response of order ' + str(payment.cart.order_ref)
+                        'summary': 'capture response'
                     }
                     save_to_mongo(data, 'payment_request_response')
 
@@ -117,7 +117,7 @@ def handle_enrollment_event(payload, cart, course_provider):
                     'order_ref': payment.cart.order_ref,
                 },
                 'created_at': timezone.now(),
-                'summary': 'voidTransaction request of order ' + str(payment.cart.order_ref)
+                'summary': 'voidTransaction request'
             }
             save_to_mongo(data, 'payment_request_response')
             capture, response = payment_transaction(payment, payment.store_payment_gateway, 'voidTransaction')
@@ -132,7 +132,7 @@ def handle_enrollment_event(payload, cart, course_provider):
                     'order_ref': payment.cart.order_ref,
                 },
                 'created_at': timezone.now(),
-                'summary': 'voidTransaction response of order ' + str(payment.cart.order_ref)
+                'summary': 'voidTransaction response'
             }
             save_to_mongo(data, 'payment_request_response')
             if capture:

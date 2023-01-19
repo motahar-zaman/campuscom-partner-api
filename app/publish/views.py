@@ -122,14 +122,13 @@ def publish(request):
         response_data = {'message': 'successfully created a job', 'job_id': str(publish_job.id)}
 
         log_data['response']['body'] = response_data
-        log.store_logging_data(request, {'payload': payload, 'response': response_data}, 'publish request-response of '+
-                               action + ' from provider ' + request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
+        log.store_logging_data(request, log_data, 'publish request-response of '+ action + ' from provider ' +
+                               request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
         return Response(response_data, status=HTTP_200_OK)
 
     log_data['response']['body']['message'] = 'invalid action name'
-    log.store_logging_data(request, log_data,
-                           'publish request-response of ' + action + ' from  provider ' + request.course_provider.name,
-                           status_code=HTTP_200_OK, erp=erp)
+    log.store_logging_data(request, log_data, 'publish request-response of ' + action + ' from  provider ' +
+                           request.course_provider.name, status_code=HTTP_200_OK, erp=erp)
     return Response({'message': 'invalid action name'}, status=HTTP_200_OK)
 
 

@@ -4,7 +4,7 @@ from django.utils import timezone
 
 class ApiLogging:
     def store_logging_data(self, request, data, summary, status_code=200, erp='site', collection=None):
-        data = {
+        log_data = {
             'course_provider': {
                 'id': str(request.course_provider.id),
                 'name': request.course_provider.name,
@@ -19,4 +19,4 @@ class ApiLogging:
         if not collection:
             collection = 'erp_request_response'
 
-        save_to_mongo(data=data, collection=collection)
+        save_to_mongo(data=log_data, collection=collection)

@@ -49,7 +49,9 @@ class RefundViewSet(viewsets.ModelViewSet):
         status, data, message = self.refund.validate_refund_data(request)
         if not status:
             response = Response({
-                "error": message,
+                "error": {
+                    'message': message
+                },
                 "status_code": 400,
             }, status=HTTP_400_BAD_REQUEST)
 

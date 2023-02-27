@@ -23,6 +23,10 @@ def handle_enrollment_event(payload, cart, course_provider):
         except CourseEnrollment.DoesNotExist:
             pass
         else:
+            # course-enrollment that is required for admin approval, will not be enrollment success without admin approval
+            if enrollment.status is not CourseEnrollment.STATUS_PENDING:
+                continue
+
             course_enrollment = True
             enrollment.status = CourseEnrollment.STATUS_FAILED
             with scopes_disabled():
@@ -155,13 +159,18 @@ def handle_student_event(payload, cart, course_provider):
             except CourseEnrollment.DoesNotExist:
                 pass
             else:
+                # course-enrollment that is required for admin approval, will not be enrollment success without admin approval
+                if enrollment.status is not CourseEnrollment.STATUS_PENDING:
+                    continue
                 profile = enrollment.profile
+
             try:
                 enrollment = CertificateEnrollment.objects.get(ref_id=item['enrollment_id'])
             except CertificateEnrollment.DoesNotExist:
                 pass
             else:
                 profile = enrollment.profile
+
             if profile is not None:
                 # contracts = CourseSharingContract.objects.filter(course_provider=course_provider)
                 # for contract in contracts:

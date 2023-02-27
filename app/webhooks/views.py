@@ -24,7 +24,7 @@ def handle_enrollment_event(payload, cart, course_provider):
             pass
         else:
             # course-enrollment that is required for admin approval, will not be enrollment success without admin approval
-            if enrollment.status is not CourseEnrollment.STATUS_PENDING:
+            if enrollment.status != CourseEnrollment.STATUS_PENDING:
                 continue
 
             course_enrollment = True
@@ -160,7 +160,7 @@ def handle_student_event(payload, cart, course_provider):
                 pass
             else:
                 # course-enrollment that is required for admin approval, will not be enrollment success without admin approval
-                if enrollment.status is not CourseEnrollment.STATUS_PENDING:
+                if enrollment.status != CourseEnrollment.STATUS_PENDING:
                     continue
                 profile = enrollment.profile
 

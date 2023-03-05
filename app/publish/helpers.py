@@ -429,7 +429,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                         title=course.title + ' (' + section.name + ')',
                         tax_code='ST080031',
                         fee=section.fee,
-                        minimum_fee=section.fee,
+                        minimum_fee=Decimal(0.00),
                         total_quantity=section_data['seat_capacity'],
                         available_quantity=section_data['available_seat'],
                     )
@@ -452,7 +452,7 @@ def j1_publish(request, request_data, contracts, course_provider_model):
                     product.title = course.title + ' ( ' + section.name + ' )'
                     product.tax_code = 'ST080031'
                     product.fee = section.fee
-                    product.minimum_fee = section.fee
+                    product.minimum_fee = Decimal(0.00)
                     product.active_status = True
                     product.total_quantity = section_data['seat_capacity']
                     product.available_quantity = section_data['available_seat']
